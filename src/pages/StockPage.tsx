@@ -6,12 +6,23 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 const emptyStock = (): Omit<StockItem, "id"> => ({
-  nombre: "", categoria: "", cantidad: 0, unidad: "uds", precioUnitario: 0, stockMinimo: 1,
+  name: "",
+  category: "",
+  quantity: 0,
+  unit: "unidades",
+  unitPrice: 0,
+  minStock: 1,
 });
 
 const StockPage = () => {
@@ -23,13 +34,17 @@ const StockPage = () => {
 
   const filtered = stock.filter(
     (s) =>
-      s.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      s.categoria.toLowerCase().includes(search.toLowerCase())
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.category.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const categorias = [...new Set(filtered.map((s) => s.categoria))];
+  const categories = [...new Set(filtered.map((s) => s.category))];
 
-  const openNew = () => { setEditing(null); setForm(emptyStock()); setDialogOpen(true); };
+  const openNew = () => {
+    setEditing(null);
+    setForm(emptyStock());
+    setDialogOpen(true);
+  };
   const openEdit = (item: StockItem) => {
     setEditing(item);
     const { id, ...rest } = item;
@@ -38,11 +53,17 @@ const StockPage = () => {
   };
 
   const handleSave = () => {
-    if (!form.nombre.trim()) { toast.error("El nombre es obligatorio"); return; }
-    if (!form.categoria.trim()) { toast.error("La categoría es obligatoria"); return; }
+    if (!form.name.trim()) {
+      toast.error("Nombre requerido");
+      return;
+    }
+    if (!form.category.trim()) {
+      toast.error("LCategoría requerida");
+      return;
+    }
     if (editing) {
       updateStockItem({ ...form, id: editing.id });
-      toast.success("Material actualizado");
+      toast.success("MAterial actualizado");
     } else {
       addStockItem(form);
       toast.success("Material añadido");
@@ -52,7 +73,7 @@ const StockPage = () => {
 
   const handleDelete = (id: string) => {
     deleteStockItem(id);
-    toast.success("Material eliminado");
+    toast.success("Item deleted");
   };
 
   return (
@@ -60,7 +81,9 @@ const StockPage = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Stock</h1>
-          <p className="text-sm text-muted-foreground mt-1">{stock.length} productos registrados</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {stock.length} materiales registrados
+          </p>
         </div>
         <Button onClick={openNew} size="sm">
           <Plus className="mr-1 h-4 w-4" /> Nuevo material
@@ -69,42 +92,65 @@ const StockPage = () => {
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Buscar producto o categoría..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        <Input
+          placeholder="Search item or category..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
-      {categorias.map((cat) => (
+      {categories.map((cat) => (
         <div key={cat} className="space-y-2">
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{cat}</h2>
+          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+            {cat}
+          </h2>
           {filtered
-            .filter((s) => s.categoria === cat)
+            .filter((s) => s.category === cat)
             .map((item) => {
-              const lowStock = item.cantidad <= item.stockMinimo;
+              const lowStock = item.quantity <= item.minStock;
               return (
                 <Card key={item.id} className="border shadow-sm group">
                   <CardContent className="flex items-center justify-between p-4">
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">{item.nombre}</p>
+                        <p className="text-sm font-medium">{item.name}</p>
                         {lowStock && (
-                          <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-xs">
-                            <AlertTriangle className="mr-1 h-3 w-3" /> Stock bajo
+                          <Badge
+                            variant="outline"
+                            className="bg-destructive/10 text-destructive border-destructive/30 text-xs"
+                          >
+                            <AlertTriangle className="mr-1 h-3 w-3" /> Stock
+                            bajo
                           </Badge>
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {item.precioUnitario.toFixed(2)} € / {item.unidad}
+                        {item.unitPrice.toFixed(2)} € / {item.unit}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <p className="text-lg font-semibold">{item.cantidad}</p>
-                        <p className="text-xs text-muted-foreground">{item.unidad}</p>
+                        <p className="text-lg font-semibold">{item.quantity}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.unit}
+                        </p>
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => openEdit(item)}
+                        >
                           <Pencil className="h-3 w-3" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(item.id)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => handleDelete(item.id)}
+                        >
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
@@ -117,28 +163,82 @@ const StockPage = () => {
       ))}
 
       {filtered.length === 0 && (
-        <p className="py-8 text-center text-sm text-muted-foreground">No se encontraron productos</p>
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No se ha encontrado stock
+        </p>
       )}
 
-      {/* Dialog nuevo/editar material */}
+      {/* Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>{editing ? "Editar material" : "Nuevo material"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit Item" : "New Item"}</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-1.5"><Label>Nombre *</Label><Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} /></div>
+            <div className="space-y-1.5">
+              <Label>Nombre *</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label>Categoría *</Label><Input value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} /></div>
-              <div className="space-y-1.5"><Label>Unidad</Label><Input value={form.unidad} onChange={(e) => setForm({ ...form, unidad: e.target.value })} /></div>
+              <div className="space-y-1.5">
+                <Label>Categoria *</Label>
+                <Input
+                  value={form.category}
+                  onChange={(e) =>
+                    setForm({ ...form, category: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Unit</Label>
+                <Input
+                  value={form.unit}
+                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                />
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5"><Label>Cantidad</Label><Input type="number" value={form.cantidad} onChange={(e) => setForm({ ...form, cantidad: Number(e.target.value) })} /></div>
-              <div className="space-y-1.5"><Label>Precio (€)</Label><Input type="number" step="0.01" value={form.precioUnitario} onChange={(e) => setForm({ ...form, precioUnitario: Number(e.target.value) })} /></div>
-              <div className="space-y-1.5"><Label>Stock mín.</Label><Input type="number" value={form.stockMinimo} onChange={(e) => setForm({ ...form, stockMinimo: Number(e.target.value) })} /></div>
+              <div className="space-y-1.5">
+                <Label>Cantidad</Label>
+                <Input
+                  type="number"
+                  value={form.quantity}
+                  onChange={(e) =>
+                    setForm({ ...form, quantity: Number(e.target.value) })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Precio Unidad(€)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.unitPrice}
+                  onChange={(e) =>
+                    setForm({ ...form, unitPrice: Number(e.target.value) })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Stock mínimo</Label>
+                <Input
+                  type="number"
+                  value={form.minStock}
+                  onChange={(e) =>
+                    setForm({ ...form, minStock: Number(e.target.value) })
+                  }
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave}>Guardar</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -8,11 +8,11 @@ import { DataProvider } from "@/contexts/DataContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
-import ClientesPage from "@/pages/ClientesPage";
-import ClienteDetallePage from "@/pages/ClienteDetallePage";
+import ClientsPage from "@/pages/ClientsPage";
 import StockPage from "@/pages/StockPage";
-import AgendaPage from "@/pages/AgendaPage";
 import NotFound from "@/pages/NotFound";
+import ClientDetailPage from "./pages/ClientDetailPage";
+import TasksPage from "./pages/TaskPage";
 
 const queryClient = new QueryClient();
 
@@ -35,20 +35,46 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <DataProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/clientes" element={<ClientesPage />} />
-              <Route path="/clientes/:id" element={<ClienteDetallePage />} />
-              <Route path="/stock" element={<StockPage />} />
-              <Route path="/agenda" element={<AgendaPage />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+          <BrowserRouter>
+            <Routes>
+              {/* Public route */}
+              <Route
+                path="/login"
+                element={
+                  <PublicRoute>
+                    <LoginPage />
+                  </PublicRoute>
+                }
+              />
+
+              {/* Redirect root to dashboard */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+              {/* Protected routes */}
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/dashboard" element={<DashboardPage />} />
+
+                {/* Clients */}
+                <Route path="/clients" element={<ClientsPage />} />
+                <Route path="/clients/:id" element={<ClientDetailPage />} />
+
+                {/* Stock */}
+                <Route path="/stock" element={<StockPage />} />
+
+                {/* Tasks / Agenda */}
+                <Route path="/tasks" element={<TasksPage />} />
+              </Route>
+
+              {/* Catch-all */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
         </DataProvider>
       </AuthProvider>
     </TooltipProvider>

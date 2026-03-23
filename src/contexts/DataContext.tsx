@@ -1,27 +1,27 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 import {
-  Cliente,
+  Client,
   StockItem,
-  Tarea,
-  mockClientes as initialClientes,
+  Task,
+  mockClients as initialClients,
   mockStock as initialStock,
-  mockTareas as initialTareas,
+  mockTasks as initialTasks,
 } from "@/data/mockData";
 
 interface DataContextType {
-  clientes: Cliente[];
+  clients: Client[];
   stock: StockItem[];
-  tareas: Tarea[];
-  addCliente: (c: Omit<Cliente, "id">) => void;
-  updateCliente: (c: Cliente) => void;
-  deleteCliente: (id: string) => void;
+  tasks: Task[];
+  addClient: (c: Omit<Client, "id">) => void;
+  updateClient: (c: Client) => void;
+  deleteClient: (id: string) => void;
   addStockItem: (s: Omit<StockItem, "id">) => void;
   updateStockItem: (s: StockItem) => void;
   deleteStockItem: (id: string) => void;
-  addTarea: (t: Omit<Tarea, "id">) => void;
-  updateTarea: (t: Tarea) => void;
-  deleteTarea: (id: string) => void;
-  updateTareaEstado: (id: string, estado: Tarea["estado"]) => void;
+  addTask: (t: Omit<Task, "id">) => void;
+  updateTask: (t: Task) => void;
+  deleteTask: (id: string) => void;
+  updateTaskStatus: (id: string, status: Task["status"]) => void;
 }
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -30,17 +30,19 @@ let nextId = 100;
 const genId = () => String(++nextId);
 
 export const DataProvider = ({ children }: { children: ReactNode }) => {
-  const [clientes, setClientes] = useState<Cliente[]>([...initialClientes]);
+  const [clients, setClients] = useState<Client[]>([...initialClients]);
   const [stock, setStock] = useState<StockItem[]>([...initialStock]);
-  const [tareas, setTareas] = useState<Tarea[]>([...initialTareas]);
+  const [tasks, setTasks] = useState<Task[]>([...initialTasks]);
 
-  const addCliente = (c: Omit<Cliente, "id">) =>
-    setClientes((prev) => [...prev, { ...c, id: genId() }]);
-  const updateCliente = (c: Cliente) =>
-    setClientes((prev) => prev.map((x) => (x.id === c.id ? c : x)));
-  const deleteCliente = (id: string) =>
-    setClientes((prev) => prev.filter((x) => x.id !== id));
+  // --- Clients ---
+  const addClient = (c: Omit<Client, "id">) =>
+    setClients((prev) => [...prev, { ...c, id: genId() }]);
+  const updateClient = (c: Client) =>
+    setClients((prev) => prev.map((x) => (x.id === c.id ? c : x)));
+  const deleteClient = (id: string) =>
+    setClients((prev) => prev.filter((x) => x.id !== id));
 
+  // --- Stock ---
   const addStockItem = (s: Omit<StockItem, "id">) =>
     setStock((prev) => [...prev, { ...s, id: genId() }]);
   const updateStockItem = (s: StockItem) =>
@@ -48,24 +50,32 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const deleteStockItem = (id: string) =>
     setStock((prev) => prev.filter((x) => x.id !== id));
 
-  const addTarea = (t: Omit<Tarea, "id">) =>
-    setTareas((prev) => [...prev, { ...t, id: genId() }]);
-  const updateTarea = (t: Tarea) =>
-    setTareas((prev) => prev.map((x) => (x.id === t.id ? t : x)));
-  const deleteTarea = (id: string) =>
-    setTareas((prev) => prev.filter((x) => x.id !== id));
-  const updateTareaEstado = (id: string, estado: Tarea["estado"]) =>
-    setTareas((prev) =>
-      prev.map((x) => (x.id === id ? { ...x, estado } : x))
-    );
+  // --- Tasks ---
+  const addTask = (t: Omit<Task, "id">) =>
+    setTasks((prev) => [...prev, { ...t, id: genId() }]);
+  const updateTask = (t: Task) =>
+    setTasks((prev) => prev.map((x) => (x.id === t.id ? t : x)));
+  const deleteTask = (id: string) =>
+    setTasks((prev) => prev.filter((x) => x.id !== id));
+  const updateTaskStatus = (id: string, status: Task["status"]) =>
+    setTasks((prev) => prev.map((x) => (x.id === id ? { ...x, status } : x)));
 
   return (
     <DataContext.Provider
       value={{
-        clientes, stock, tareas,
-        addCliente, updateCliente, deleteCliente,
-        addStockItem, updateStockItem, deleteStockItem,
-        addTarea, updateTarea, deleteTarea, updateTareaEstado,
+        clients,
+        stock,
+        tasks,
+        addClient,
+        updateClient,
+        deleteClient,
+        addStockItem,
+        updateStockItem,
+        deleteStockItem,
+        addTask,
+        updateTask,
+        deleteTask,
+        updateTaskStatus,
       }}
     >
       {children}

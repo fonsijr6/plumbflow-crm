@@ -1,66 +1,233 @@
-export interface Cliente {
+export interface Client {
   id: string;
-  nombre: string;
-  telefono: string;
+  name: string;
+  phone: string;
   email: string;
-  direccion: string;
-  notas: string;
-  fechaAlta: string;
+  address: string;
+  notes: string;
+  createdAt: string;
 }
 
 export interface StockItem {
   id: string;
-  nombre: string;
-  categoria: string;
-  cantidad: number;
-  unidad: string;
-  precioUnitario: number;
-  stockMinimo: number;
+  name: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  minStock: number;
 }
 
-export interface Tarea {
+export interface Task {
   id: string;
-  clienteId: string;
-  clienteNombre: string;
-  direccion: string;
-  descripcion: string;
-  fecha: string; // YYYY-MM-DD
-  hora: string;
-  estado: "pendiente" | "en_progreso" | "completada";
+  clientId: string;
+  clientName: string;
+  address: string;
+  description: string;
+  date: string;
+  time: string;
+  status: "pending" | "in_progress" | "completed";
 }
 
-export const mockClientes: Cliente[] = [
-  { id: "1", nombre: "María García López", telefono: "612 345 678", email: "maria.garcia@email.com", direccion: "Calle Mayor 12, 3ºB, Madrid", notas: "Problemas recurrentes con caldera", fechaAlta: "2024-01-15" },
-  { id: "2", nombre: "Carlos Ruiz Fernández", telefono: "634 567 890", email: "carlos.ruiz@email.com", direccion: "Av. de la Constitución 45, Valencia", notas: "Comunidad de vecinos - presidente", fechaAlta: "2024-02-20" },
-  { id: "3", nombre: "Ana Martínez Soto", telefono: "655 123 456", email: "ana.martinez@email.com", direccion: "Plaza España 8, 1ºA, Sevilla", notas: "", fechaAlta: "2024-03-10" },
-  { id: "4", nombre: "Pedro Jiménez Navarro", telefono: "678 901 234", email: "pedro.jimenez@email.com", direccion: "Calle del Prado 22, Barcelona", notas: "Reforma completa baño programada", fechaAlta: "2024-04-05" },
-  { id: "5", nombre: "Laura Sánchez Díaz", telefono: "691 234 567", email: "laura.sanchez@email.com", direccion: "Ronda de Toledo 5, 2ºC, Zaragoza", notas: "Tubería antigua, revisar en próxima visita", fechaAlta: "2024-05-12" },
-  { id: "6", nombre: "Javier Moreno Ruiz", telefono: "623 456 789", email: "javier.moreno@email.com", direccion: "Calle Alcalá 88, Madrid", notas: "", fechaAlta: "2024-06-01" },
+export const mockClients: Client[] = [
+  {
+    id: "1",
+    name: "María García López",
+    phone: "612 345 678",
+    email: "maria.garcia@email.com",
+    address: "Calle Mayor 12, 3ºB, Madrid",
+    notes: "Recurring boiler issues",
+    createdAt: "2024-01-15",
+  },
+  {
+    id: "2",
+    name: "Carlos Ruiz Fernández",
+    phone: "634 567 890",
+    email: "carlos.ruiz@email.com",
+    address: "Av. de la Constitución 45, Valencia",
+    notes: "Building manager / HOA president",
+    createdAt: "2024-02-20",
+  },
+  {
+    id: "3",
+    name: "Ana Martínez Soto",
+    phone: "655 123 456",
+    email: "ana.martinez@email.com",
+    address: "Plaza España 8, 1ºA, Sevilla",
+    notes: "",
+    createdAt: "2024-03-10",
+  },
+  {
+    id: "4",
+    name: "Pedro Jiménez Navarro",
+    phone: "678 901 234",
+    email: "pedro.jimenez@email.com",
+    address: "Calle del Prado 22, Barcelona",
+    notes: "Full bathroom renovation scheduled",
+    createdAt: "2024-04-05",
+  },
+  {
+    id: "5",
+    name: "Laura Sánchez Díaz",
+    phone: "691 234 567",
+    email: "laura.sanchez@email.com",
+    address: "Ronda de Toledo 5, 2ºC, Zaragoza",
+    notes: "Old pipes, check on next visit",
+    createdAt: "2024-05-12",
+  },
+  {
+    id: "6",
+    name: "Javier Moreno Ruiz",
+    phone: "623 456 789",
+    email: "javier.moreno@email.com",
+    address: "Calle Alcalá 88, Madrid",
+    notes: "",
+    createdAt: "2024-06-01",
+  },
 ];
 
 export const mockStock: StockItem[] = [
-  { id: "1", nombre: "Tubo PVC 40mm", categoria: "Tubería", cantidad: 25, unidad: "metros", precioUnitario: 3.50, stockMinimo: 10 },
-  { id: "2", nombre: "Tubo cobre 22mm", categoria: "Tubería", cantidad: 15, unidad: "metros", precioUnitario: 8.20, stockMinimo: 5 },
-  { id: "3", nombre: "Grifo monomando cocina", categoria: "Grifería", cantidad: 4, unidad: "uds", precioUnitario: 45.00, stockMinimo: 2 },
-  { id: "4", nombre: "Sifón botella 1 1/4\"", categoria: "Accesorios", cantidad: 8, unidad: "uds", precioUnitario: 6.50, stockMinimo: 3 },
-  { id: "5", nombre: "Cinta de teflón", categoria: "Sellado", cantidad: 20, unidad: "uds", precioUnitario: 1.20, stockMinimo: 10 },
-  { id: "6", nombre: "Silicona sanitaria blanca", categoria: "Sellado", cantidad: 6, unidad: "uds", precioUnitario: 5.80, stockMinimo: 3 },
-  { id: "7", nombre: "Válvula de esfera 1/2\"", categoria: "Válvulas", cantidad: 12, unidad: "uds", precioUnitario: 7.90, stockMinimo: 5 },
-  { id: "8", nombre: "Termo eléctrico 80L", categoria: "Calentadores", cantidad: 2, unidad: "uds", precioUnitario: 189.00, stockMinimo: 1 },
-  { id: "9", nombre: "Flexo ducha 1.5m", categoria: "Accesorios", cantidad: 7, unidad: "uds", precioUnitario: 9.50, stockMinimo: 3 },
-  { id: "10", nombre: "Junta tórica surtido", categoria: "Sellado", cantidad: 3, unidad: "packs", precioUnitario: 12.00, stockMinimo: 2 },
+  {
+    id: "1",
+    name: "PVC pipe 40mm",
+    category: "Piping",
+    quantity: 25,
+    unit: "meters",
+    unitPrice: 3.5,
+    minStock: 10,
+  },
+  {
+    id: "2",
+    name: "Copper pipe 22mm",
+    category: "Piping",
+    quantity: 15,
+    unit: "meters",
+    unitPrice: 8.2,
+    minStock: 5,
+  },
+  {
+    id: "3",
+    name: "Kitchen mixer tap",
+    category: "Faucets",
+    quantity: 4,
+    unit: "units",
+    unitPrice: 45.0,
+    minStock: 2,
+  },
+  {
+    id: "4",
+    name: 'Bottle trap 1 1/4"',
+    category: "Accessories",
+    quantity: 8,
+    unit: "units",
+    unitPrice: 6.5,
+    minStock: 3,
+  },
+  {
+    id: "5",
+    name: "Teflon tape",
+    category: "Sealing",
+    quantity: 20,
+    unit: "units",
+    unitPrice: 1.2,
+    minStock: 10,
+  },
+  {
+    id: "6",
+    name: "White sanitary silicone",
+    category: "Sealing",
+    quantity: 6,
+    unit: "units",
+    unitPrice: 5.8,
+    minStock: 3,
+  },
+  {
+    id: "7",
+    name: 'Ball valve 1/2"',
+    category: "Valves",
+    quantity: 12,
+    unit: "units",
+    unitPrice: 7.9,
+    minStock: 5,
+  },
+  {
+    id: "8",
+    name: "Electric water heater 80L",
+    category: "Heaters",
+    quantity: 2,
+    unit: "units",
+    unitPrice: 189.0,
+    minStock: 1,
+  },
+  {
+    id: "9",
+    name: "Shower hose 1.5m",
+    category: "Accessories",
+    quantity: 7,
+    unit: "units",
+    unitPrice: 9.5,
+    minStock: 3,
+  },
+  {
+    id: "10",
+    name: "O-ring assortment",
+    category: "Sealing",
+    quantity: 3,
+    unit: "packs",
+    unitPrice: 12.0,
+    minStock: 2,
+  },
 ];
 
-const today = new Date();
-const fmt = (d: Date) => d.toISOString().split("T")[0];
-const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
-
-export const mockTareas: Tarea[] = [
-  { id: "1", clienteId: "1", clienteNombre: "María García", direccion: "Calle Mayor 12, 3ºB", descripcion: "Revisión caldera y purga radiadores", fecha: fmt(today), hora: "09:00", estado: "pendiente" },
-  { id: "2", clienteId: "3", clienteNombre: "Ana Martínez", direccion: "Plaza España 8, 1ºA", descripcion: "Cambio grifo baño", fecha: fmt(today), hora: "11:30", estado: "pendiente" },
-  { id: "3", clienteId: "5", clienteNombre: "Laura Sánchez", direccion: "Ronda de Toledo 5, 2ºC", descripcion: "Desatasco fregadero cocina", fecha: fmt(today), hora: "16:00", estado: "en_progreso" },
-  { id: "4", clienteId: "2", clienteNombre: "Carlos Ruiz", direccion: "Av. de la Constitución 45", descripcion: "Instalación contador comunitario", fecha: fmt(addDays(today, 1)), hora: "10:00", estado: "pendiente" },
-  { id: "5", clienteId: "4", clienteNombre: "Pedro Jiménez", direccion: "Calle del Prado 22", descripcion: "Inicio reforma baño completa", fecha: fmt(addDays(today, 1)), hora: "08:30", estado: "pendiente" },
-  { id: "6", clienteId: "6", clienteNombre: "Javier Moreno", direccion: "Calle Alcalá 88", descripcion: "Reparación cisterna WC", fecha: fmt(addDays(today, 2)), hora: "09:30", estado: "pendiente" },
-  { id: "7", clienteId: "1", clienteNombre: "María García", direccion: "Calle Mayor 12, 3ºB", descripcion: "Seguimiento caldera", fecha: fmt(addDays(today, 3)), hora: "10:00", estado: "pendiente" },
+export const mockTasks: Task[] = [
+  {
+    id: "1",
+    clientId: "1",
+    clientName: "María García López",
+    address: "Calle Mayor 12, 3ºB, Madrid",
+    description: "Boiler maintenance",
+    date: "2024-03-25",
+    time: "09:00",
+    status: "pending",
+  },
+  {
+    id: "2",
+    clientId: "2",
+    clientName: "Carlos Ruiz Fernández",
+    address: "Av. de la Constitución 45, Valencia",
+    description: "Check building water pumps",
+    date: "2024-03-25",
+    time: "11:30",
+    status: "in_progress",
+  },
+  {
+    id: "3",
+    clientId: "4",
+    clientName: "Pedro Jiménez Navarro",
+    address: "Calle del Prado 22, Barcelona",
+    description: "Bathroom renovation supervision",
+    date: "2024-03-26",
+    time: "10:00",
+    status: "pending",
+  },
+  {
+    id: "4",
+    clientId: "5",
+    clientName: "Laura Sánchez Díaz",
+    address: "Ronda de Toledo 5, 2ºC, Zaragoza",
+    description: "Pipe inspection",
+    date: "2024-03-26",
+    time: "14:00",
+    status: "completed",
+  },
+  {
+    id: "5",
+    clientId: "6",
+    clientName: "Javier Moreno Ruiz",
+    address: "Calle Alcalá 88, Madrid",
+    description: "General plumbing check",
+    date: "2024-03-27",
+    time: "08:30",
+    status: "pending",
+  },
 ];

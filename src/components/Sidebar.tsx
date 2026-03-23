@@ -1,6 +1,13 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Users, Package, CalendarDays, LayoutDashboard, LogOut, Wrench } from "lucide-react";
+import {
+  Users,
+  Package,
+  CalendarDays,
+  LayoutDashboard,
+  LogOut,
+  Wrench,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -36,7 +43,7 @@ const Sidebar = () => {
                 "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 active
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
               )}
             >
               <Icon className="h-4 w-4" />
@@ -49,7 +56,7 @@ const Sidebar = () => {
       <div className="border-t border-sidebar-border px-3 py-4">
         <div className="mb-3 px-3">
           <p className="truncate text-xs font-medium text-sidebar-foreground">
-            {user?.nombre}
+            {user?.name}
           </p>
           <p className="truncate text-xs text-sidebar-foreground/50">
             {user?.email}
