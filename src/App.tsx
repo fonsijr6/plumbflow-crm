@@ -4,15 +4,15 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { DataProvider } from "@/contexts/DataContext";
+
 import DashboardLayout from "@/components/DashboardLayout";
 import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
 import ClientsPage from "@/pages/ClientsPage";
 import StockPage from "@/pages/StockPage";
+import TasksPage from "@/pages/TaskPage";
+import ClientDetailPage from "@/pages/ClientDetailPage";
 import NotFound from "@/pages/NotFound";
-import ClientDetailPage from "./pages/ClientDetailPage";
-import TasksPage from "./pages/TaskPage";
 
 const queryClient = new QueryClient();
 
@@ -33,49 +33,48 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+
       <AuthProvider>
-        <DataProvider>
-          <BrowserRouter>
-            <Routes>
-              {/* Public route */}
-              <Route
-                path="/login"
-                element={
-                  <PublicRoute>
-                    <LoginPage />
-                  </PublicRoute>
-                }
-              />
+        <BrowserRouter>
+          <Routes>
+            {/* RUTA PÚBLICA */}
+            <Route
+              path="/login"
+              element={
+                <PublicRoute>
+                  <LoginPage />
+                </PublicRoute>
+              }
+            />
 
-              {/* Redirect root to dashboard */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            {/* REDIRECCIÓN A DASHBOARD */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-              {/* Protected routes */}
-              <Route
-                element={
-                  <ProtectedRoute>
-                    <DashboardLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route path="/dashboard" element={<DashboardPage />} />
+            {/* RUTAS PRIVADAS */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/dashboard" element={<DashboardPage />} />
 
-                {/* Clients */}
-                <Route path="/clients" element={<ClientsPage />} />
-                <Route path="/clients/:id" element={<ClientDetailPage />} />
+              {/* CLIENTES */}
+              <Route path="/clients" element={<ClientsPage />} />
+              <Route path="/clients/:id" element={<ClientDetailPage />} />
 
-                {/* Stock */}
-                <Route path="/stock" element={<StockPage />} />
+              {/* STOCK */}
+              <Route path="/stock" element={<StockPage />} />
 
-                {/* Tasks / Agenda */}
-                <Route path="/tasks" element={<TasksPage />} />
-              </Route>
+              {/* TAREAS */}
+              <Route path="/tasks" element={<TasksPage />} />
+            </Route>
 
-              {/* Catch-all */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </DataProvider>
+            {/* NOT FOUND */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

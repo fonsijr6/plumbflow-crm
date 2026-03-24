@@ -12,9 +12,9 @@ import { cn } from "@/lib/utils";
 
 const links = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/clientes", label: "Clientes", icon: Users },
+  { to: "/clients", label: "Clientes", icon: Users },
   { to: "/stock", label: "Stock", icon: Package },
-  { to: "/agenda", label: "Agenda", icon: CalendarDays },
+  { to: "/tasks", label: "Agenda", icon: CalendarDays },
 ];
 
 const Sidebar = () => {

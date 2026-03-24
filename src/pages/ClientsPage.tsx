@@ -1,8 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
-import { useData } from "@/contexts/DataContext";
-import { Client } from "@/data/mockData";
 import { useNavigate } from "react-router-dom";
 import { Search, Phone, Mail, ChevronRight, Plus } from "lucide-react";
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { getClients, createClient } from "@/api/ClientApi";
+
+import { Client } from "@/data/mockData";
+
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,64 +23,97 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
-const emptyClient = (): Omit<Client, "id"> => ({
+const emptyClient = (): Omit<Client, "id" | "createdAt"> => ({
   name: "",
   phone: "",
   email: "",
   address: "",
   notes: "",
-  createdAt: new Date().toISOString().split("T")[0],
 });
 
 const ClientsPage = () => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState<Omit<Client, "id">>(emptyClient());
-  const navigate = useNavigate();
-  const { clients, addClient } = useData();
+  const [form, setForm] =
+    useState<Omit<Client, "id" | "createdAt">>(emptyClient());
 
-  const filtered = clients.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.phone.includes(search) ||
-      c.email.toLowerCase().includes(search.toLowerCase()),
-  );
+  // ✅ GET clients from backend
+  const { data: clients, isLoading } = useQuery({
+    queryKey: ["clients"],
+    queryFn: getClients,
+  });
+
+  // ✅ MUTATION to create new client
+  const createMutation = useMutation({
+    mutationFn: createClient,
+    onSuccess: () => {
+      toast.success("Cliente creado satisfactoriamente");
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      setDialogOpen(false);
+      setForm(emptyClient());
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Error creando cliente");
+    },
+  });
 
   const handleSave = () => {
     if (!form.name.trim()) {
-      toast.error("Name is required");
+      toast.error("El nombre es obligatorio");
       return;
     }
-    addClient(form);
-    toast.success("Client creado satisfactoriamente");
-    setDialogOpen(false);
-    setForm(emptyClient());
+    createMutation.mutate(form);
   };
+
+  if (isLoading) {
+    return (
+      <p className="text-center py-12 text-muted-foreground">
+        Cargando clientes...
+      </p>
+    );
+  }
+
+  const filtered =
+    clients?.filter((c) =>
+      [c.name, c.phone, c.email]
+        .join(" ")
+        .toLowerCase()
+        .includes(search.toLowerCase()),
+    ) || [];
+  console.log("CLIENTES:", clients);
 
   return (
     <div className="space-y-6">
+      {/* HEADER */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {clients.length} clientes registrados
+            {clients?.length ?? 0} clientes registrados
           </p>
         </div>
+
         <Button onClick={() => setDialogOpen(true)} size="sm">
-          <Plus className="mr-1 h-4 w-4" /> Nuevo cliente
+          <Plus className="mr-1 h-4 w-4" />
+          Nuevo cliente
         </Button>
       </div>
 
+      {/* SEARCH */}
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search client..."
+          placeholder="Buscar cliente..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"
         />
       </div>
 
+      {/* CLIENT LIST */}
       <div className="space-y-2">
         {filtered.map((c) => (
           <Card
@@ -96,10 +135,12 @@ const ClientsPage = () => {
                   </span>
                 </div>
               </div>
+
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </CardContent>
           </Card>
         ))}
+
         {filtered.length === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">
             No se han encontrado clientes
@@ -107,12 +148,14 @@ const ClientsPage = () => {
         )}
       </div>
 
-      {/* Dialog */}
+      {/* DIALOG - CREATE NEW CLIENT */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Nuevo cliente</DialogTitle>
           </DialogHeader>
+
+          {/* FORM */}
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Nombre *</Label>
@@ -121,6 +164,7 @@ const ClientsPage = () => {
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Teléfono</Label>
@@ -129,6 +173,7 @@ const ClientsPage = () => {
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 />
               </div>
+
               <div className="space-y-1.5">
                 <Label>Email</Label>
                 <Input
@@ -137,6 +182,7 @@ const ClientsPage = () => {
                 />
               </div>
             </div>
+
             <div className="space-y-1.5">
               <Label>Dirección</Label>
               <Input
@@ -144,20 +190,24 @@ const ClientsPage = () => {
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
               />
             </div>
+
             <div className="space-y-1.5">
               <Label>Notas</Label>
               <Textarea
                 value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 rows={2}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
               />
             </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSave}>Guardar</Button>
+            <Button onClick={handleSave} disabled={createMutation.isPending}>
+              {createMutation.isPending ? "Guardando..." : "Guardar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
