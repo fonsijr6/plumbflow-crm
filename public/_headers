@@ -1,0 +1,6 @@
+/*
+  Content-Security-Policy: default-src 'self'; 
+    connect-src 'self' https://fonsi-plumbflow-crm.up.railway.app https://*.vercel.app;
+    img-src 'self' data: https:;
+    style-src 'self' 'unsafe-inline';
+    script-src 'self';
