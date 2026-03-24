@@ -7,10 +7,12 @@ const api = axios.create({
 
 // ✅ Interceptor para meter el JWT en todas las peticiones
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("access_token"); // o desde AuthContext si prefieres
+  const token = localStorage.getItem("access_token");
 
-  if (token) {
+  if (token && token !== "null" && token !== "undefined") {
     config.headers.Authorization = `Bearer ${token}`;
+  } else {
+    delete config.headers.Authorization;
   }
 
   return config;

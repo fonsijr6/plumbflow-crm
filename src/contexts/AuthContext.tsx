@@ -59,13 +59,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const initialize = async () => {
       try {
-        const newToken = await refreshToken(); // si cookie refreshToken es válida → devuelve accessToken
-        setToken(newToken);
+        const newToken = await refreshToken();
 
-        const me = await getMe(newToken);
-        setUser({ name: me.name, email: me.email });
+        if (newToken) {
+          setToken(newToken);
+          localStorage.setItem("access_token", newToken);
+
+          const me = await getMe(newToken);
+          setUser({ name: me.name, email: me.email });
+        }
       } catch {
-        console.log("No hay sesión activa o refresh inválido");
+        console.log("No hay sesión activa.");
       }
     };
 
