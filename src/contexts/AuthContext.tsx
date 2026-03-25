@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
   useContext,
@@ -5,6 +6,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
+
 import {
   login as apiLogin,
   register as apiRegister,
@@ -13,11 +15,29 @@ import {
   getMe,
 } from "@/api/AuthApi";
 
+interface User {
+  id: string;
+  name: string;
+  email: string;
+
+  // ✅ Nuevos campos del autónomo
+  issuerAddress: string;
+  issuerNif: string;
+  issuerEmail: string;
+}
+
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: { name: string; email: string } | null;
+  user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string) => Promise<boolean>;
+  register: (data: {
+    name: string;
+    email: string;
+    password: string;
+    issuerAddress: string;
+    issuerNif: string;
+    issuerEmail?: string;
+  }) => Promise<boolean>;
   logout: () => Promise<void>;
 }
 
@@ -25,14 +45,18 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+
   const isAuthenticated = !!token;
 
+  /* ✅ LOGIN */
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       const data = await apiLogin(email, password);
+
       setToken(data.token);
       setUser(data.user);
+
       localStorage.setItem("access_token", data.token);
       return true;
     } catch (err) {
@@ -41,11 +65,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const register = async (name: string, email: string, password: string): Promise<boolean> => {
+  /* ✅ REGISTER */
+  const register = async (form: {
+    name: string;
+    email: string;
+    password: string;
+    issuerAddress: string;
+    issuerNif: string;
+    issuerEmail?: string;
+  }): Promise<boolean> => {
     try {
-      const data = await apiRegister({ name, email, password });
+      const data = await apiRegister(form);
+
       setToken(data.token);
       setUser(data.user);
+
       localStorage.setItem("access_token", data.token);
       return true;
     } catch (err) {
@@ -54,6 +88,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  /* ✅ LOGOUT */
   const logout = async () => {
     try {
       await apiLogout();
@@ -65,25 +100,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
   };
 
+  /* ✅ REFRESH TOKEN AL CARGAR LA APP */
   useEffect(() => {
     const initialize = async () => {
       try {
         const newToken = await refreshToken();
+
         if (newToken) {
           setToken(newToken);
           localStorage.setItem("access_token", newToken);
+
           const me = await getMe(newToken);
-          setUser({ name: me.name, email: me.email });
+
+          // ✅ Guardamos TODOS los datos
+          setUser({
+            id: me.id,
+            name: me.name,
+            email: me.email,
+            issuerAddress: me.issuerAddress,
+            issuerNif: me.issuerNif,
+            issuerEmail: me.issuerEmail,
+          });
         }
-      } catch {
+      } catch (err) {
         console.log("No hay sesión activa.");
       }
     };
+
     initialize();
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        user,
+        login,
+        register,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

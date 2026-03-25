@@ -89,10 +89,10 @@ const InvoicesPage = () => {
     clientEmail: "",
     clientAddress: "",
     clientNif: "",
-    issuerName,
-    issuerNif: "",
-    issuerEmail: "",
-    issuerAddress: "",
+    issuerName: user?.name || "",
+    issuerNif: user?.issuerNif || "",
+    issuerEmail: user?.issuerEmail || user?.email || "",
+    issuerAddress: user?.issuerAddress || "",
     date: new Date().toISOString().split("T")[0],
     dueDate: "",
     lines: [emptyLine()],
@@ -128,10 +128,10 @@ const InvoicesPage = () => {
           clientEmail: client.email,
           clientAddress: client.address,
           clientNif: "",
-          issuerName,
-          issuerNif: "",
-          issuerEmail: user.email,
-          issuerAddress: "",
+          issuerName: user?.name || "",
+          issuerNif: user?.issuerNif || "",
+          issuerEmail: user?.issuerEmail || user?.email || "",
+          issuerAddress: user?.issuerAddress || "",
           date: new Date().toISOString().split("T")[0],
           dueDate: "",
           lines: [emptyLine()],
@@ -141,7 +141,17 @@ const InvoicesPage = () => {
         setDialogOpen(true);
       }
     }
-  }, [newForClient, clients, issuerName]);
+  }, [
+    newForClient,
+    clients,
+    issuerName,
+    issuerEmail,
+    user?.name,
+    user?.issuerNif,
+    user?.issuerEmail,
+    user?.email,
+    user?.issuerAddress,
+  ]);
 
   /* --------------------------------------------------
      MUTATION
@@ -425,34 +435,24 @@ const InvoicesPage = () => {
             {/* DATOS EMISOR */}
             <div>
               <p className="text-sm font-medium mb-2">Datos del emisor</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+              {/* FILA 1 → Nombre + NIF */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Nombre / Razón social</Label>
-                  <Input
-                    value={form.issuerName}
-                    onChange={(e) =>
-                      setForm({ ...form, issuerName: e.target.value })
-                    }
-                  />
+                  <Input value={form.issuerName} disabled />
                 </div>
+
                 <div className="space-y-1.5">
                   <Label>NIF / CIF</Label>
-                  <Input
-                    value={form.issuerNif}
-                    onChange={(e) =>
-                      setForm({ ...form, issuerNif: e.target.value })
-                    }
-                  />
+                  <Input value={form.issuerNif} disabled />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Dirección</Label>
-                  <Input
-                    value={form.issuerAddress}
-                    onChange={(e) =>
-                      setForm({ ...form, issuerAddress: e.target.value })
-                    }
-                  />
-                </div>
+              </div>
+
+              {/* FILA 2 → Dirección fiscal completa */}
+              <div className="space-y-1.5 mt-3">
+                <Label>Dirección fiscal</Label>
+                <Input value={form.issuerAddress} disabled />
               </div>
             </div>
 

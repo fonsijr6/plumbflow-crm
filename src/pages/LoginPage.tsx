@@ -9,10 +9,17 @@ import { Label } from "@/components/ui/label";
 const LoginPage = () => {
   const { login, register } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // ✅ Campos nuevos del autónomo
+  const [issuerAddress, setIssuerAddress] = useState("");
+  const [issuerNif, setIssuerNif] = useState("");
+  const [issuerEmail, setIssuerEmail] = useState("");
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -26,35 +33,42 @@ const LoginPage = () => {
     }
 
     if (isRegister) {
-      if (!name.trim()) {
-        setError("Introduce tu nombre");
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError("Las contraseñas no coinciden");
-        return;
-      }
-      if (password.length < 6) {
-        setError("La contraseña debe tener al menos 6 caracteres");
-        return;
-      }
+      if (!name.trim()) return setError("Introduce tu nombre");
+
+      if (!issuerAddress.trim())
+        return setError("Introduce tu dirección fiscal");
+
+      if (!issuerNif.trim()) return setError("Introduce tu NIF/CIF");
+
+      if (password !== confirmPassword)
+        return setError("Las contraseñas no coinciden");
+
+      if (password.length < 6)
+        return setError("La contraseña debe tener al menos 6 caracteres");
 
       setLoading(true);
-      const success = await register(name, email, password);
+
+      const success = await register({
+        name,
+        email,
+        password,
+        issuerAddress,
+        issuerNif,
+        issuerEmail: issuerEmail.trim() || email, // fallback
+      });
+
       setLoading(false);
 
-      if (!success) {
-        setError("Error al registrarse. Intenta de nuevo.");
-      }
-    } else {
-      setLoading(true);
-      const success = await login(email, password);
-      setLoading(false);
-
-      if (!success) {
-        setError("Credenciales incorrectas");
-      }
+      if (!success) setError("Error al registrarse. Intenta de nuevo.");
+      return;
     }
+
+    // ✅ LOGIN
+    setLoading(true);
+    const success = await login(email, password);
+    setLoading(false);
+
+    if (!success) setError("Credenciales incorrectas");
   };
 
   return (
@@ -80,6 +94,7 @@ const LoginPage = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* ✅ Campo nombre SOLO en registro */}
           {isRegister && (
             <div className="space-y-2">
               <Label htmlFor="name">Nombre completo</Label>
@@ -103,6 +118,44 @@ const LoginPage = () => {
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
+
+          {/* ✅ Campos nuevos SOLO en registro */}
+          {isRegister && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="issuerAddress">Dirección fiscal *</Label>
+                <Input
+                  id="issuerAddress"
+                  type="text"
+                  placeholder="Calle, número, ciudad..."
+                  value={issuerAddress}
+                  onChange={(e) => setIssuerAddress(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="issuerNif">NIF / CIF *</Label>
+                <Input
+                  id="issuerNif"
+                  type="text"
+                  placeholder="12345678X"
+                  value={issuerNif}
+                  onChange={(e) => setIssuerNif(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="issuerEmail">Email fiscal (opcional)</Label>
+                <Input
+                  id="issuerEmail"
+                  type="email"
+                  placeholder="facturacion@tudominio.com"
+                  value={issuerEmail}
+                  onChange={(e) => setIssuerEmail(e.target.value)}
+                />
+              </div>
+            </>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="password">Contraseña</Label>
