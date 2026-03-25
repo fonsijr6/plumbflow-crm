@@ -35,7 +35,6 @@ const App = () => (
   <ThemeProvider>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-    <TooltipProvider>
       <Toaster />
       <Sonner />
 
