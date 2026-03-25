@@ -2,16 +2,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Phone, Mail, ChevronRight, Plus } from "lucide-react";
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-
 import { getClients, createClient } from "@/api/ClientApi";
-
 import { Client } from "@/data/mockData";
-
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -37,16 +34,13 @@ const ClientsPage = () => {
 
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] =
-    useState<Omit<Client, "id" | "createdAt">>(emptyClient());
+  const [form, setForm] = useState<Omit<Client, "id" | "createdAt">>(emptyClient());
 
-  // ✅ GET clients from backend
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients"],
     queryFn: getClients,
   });
 
-  // ✅ MUTATION to create new client
   const createMutation = useMutation({
     mutationFn: createClient,
     onSuccess: () => {
@@ -70,9 +64,7 @@ const ClientsPage = () => {
 
   if (isLoading) {
     return (
-      <p className="text-center py-12 text-muted-foreground">
-        Cargando clientes...
-      </p>
+      <p className="text-center py-12 text-muted-foreground">Cargando clientes...</p>
     );
   }
 
@@ -83,70 +75,70 @@ const ClientsPage = () => {
         .toLowerCase()
         .includes(search.toLowerCase()),
     ) || [];
-  console.log("CLIENTES:", clients);
 
   return (
-    <div className="space-y-6">
-      {/* HEADER */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {clients?.length ?? 0} clientes registrados
-          </p>
+    <div className="flex h-full flex-col">
+      {/* STICKY HEADER */}
+      <div className="shrink-0 space-y-4 pb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {clients?.length ?? 0} clientes registrados
+            </p>
+          </div>
+          <Button onClick={() => setDialogOpen(true)} size="sm">
+            <Plus className="mr-1 h-4 w-4" />
+            Nuevo cliente
+          </Button>
         </div>
 
-        <Button onClick={() => setDialogOpen(true)} size="sm">
-          <Plus className="mr-1 h-4 w-4" />
-          Nuevo cliente
-        </Button>
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar cliente..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
       </div>
 
-      {/* SEARCH */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Buscar cliente..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
-      </div>
-
-      {/* CLIENT LIST */}
-      <div className="space-y-2">
-        {filtered.map((c) => (
-          <Card
-            key={c.id}
-            className="cursor-pointer border shadow-sm transition-all hover:shadow-md hover:border-primary/30"
-            onClick={() => navigate(`/clients/${c.id}`)}
-          >
-            <CardContent className="flex items-center justify-between p-4">
-              <div className="space-y-1">
-                <p className="font-medium text-sm">{c.name}</p>
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Phone className="h-3 w-3" />
-                    {c.phone}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Mail className="h-3 w-3" />
-                    {c.email}
-                  </span>
+      {/* SCROLLABLE CLIENT LIST */}
+      <ScrollArea className="flex-1 -mx-1 px-1">
+        <div className="space-y-2 pb-4">
+          {filtered.map((c) => (
+            <Card
+              key={c.id}
+              className="cursor-pointer border shadow-sm transition-all hover:shadow-md hover:border-primary/30"
+              onClick={() => navigate(`/clients/${c.id}`)}
+            >
+              <CardContent className="flex items-center justify-between p-4">
+                <div className="space-y-1 min-w-0 flex-1">
+                  <p className="font-medium text-sm truncate">{c.name}</p>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Phone className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{c.phone}</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Mail className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{c.email}</span>
+                    </span>
+                  </div>
                 </div>
-              </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 ml-2" />
+              </CardContent>
+            </Card>
+          ))}
 
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </CardContent>
-          </Card>
-        ))}
-
-        {filtered.length === 0 && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            No se han encontrado clientes
-          </p>
-        )}
-      </div>
+          {filtered.length === 0 && (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              No se han encontrado clientes
+            </p>
+          )}
+        </div>
+      </ScrollArea>
 
       {/* DIALOG - CREATE NEW CLIENT */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -155,7 +147,6 @@ const ClientsPage = () => {
             <DialogTitle>Nuevo cliente</DialogTitle>
           </DialogHeader>
 
-          {/* FORM */}
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Nombre *</Label>
@@ -165,7 +156,7 @@ const ClientsPage = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Teléfono</Label>
                 <Input
@@ -173,7 +164,6 @@ const ClientsPage = () => {
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 />
               </div>
-
               <div className="space-y-1.5">
                 <Label>Email</Label>
                 <Input

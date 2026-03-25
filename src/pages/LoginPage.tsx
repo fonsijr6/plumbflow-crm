@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
 const LoginPage = () => {
-  const { login } = useAuth();
+  const { login, register } = useAuth();
+  const [isRegister, setIsRegister] = useState(false);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -22,12 +25,35 @@ const LoginPage = () => {
       return;
     }
 
-    setLoading(true);
-    const success = await login(email, password);
-    setLoading(false);
+    if (isRegister) {
+      if (!name.trim()) {
+        setError("Introduce tu nombre");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("Las contraseñas no coinciden");
+        return;
+      }
+      if (password.length < 6) {
+        setError("La contraseña debe tener al menos 6 caracteres");
+        return;
+      }
 
-    if (!success) {
-      setError("Credenciales incorrectas");
+      setLoading(true);
+      const success = await register(name, email, password);
+      setLoading(false);
+
+      if (!success) {
+        setError("Error al registrarse. Intenta de nuevo.");
+      }
+    } else {
+      setLoading(true);
+      const success = await login(email, password);
+      setLoading(false);
+
+      if (!success) {
+        setError("Credenciales incorrectas");
+      }
     }
   };
 
@@ -47,11 +73,26 @@ const LoginPage = () => {
             FontaneroCRM
           </h1>
           <p className="text-sm text-muted-foreground">
-            Gestiona tu negocio de fontanería
+            {isRegister
+              ? "Crea tu cuenta para gestionar tu negocio"
+              : "Gestiona tu negocio de fontanería"}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {isRegister && (
+            <div className="space-y-2">
+              <Label htmlFor="name">Nombre completo</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Tu nombre"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -74,12 +115,46 @@ const LoginPage = () => {
             />
           </div>
 
+          {isRegister && (
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+          )}
+
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Iniciando..." : "Iniciar sesión"}
+            {loading
+              ? isRegister
+                ? "Registrando..."
+                : "Iniciando..."
+              : isRegister
+                ? "Crear cuenta"
+                : "Iniciar sesión"}
           </Button>
         </form>
+
+        <div className="mt-6 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegister(!isRegister);
+              setError("");
+            }}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {isRegister
+              ? "¿Ya tienes cuenta? Inicia sesión"
+              : "¿No tienes cuenta? Regístrate"}
+          </button>
+        </div>
       </motion.div>
     </div>
   );
