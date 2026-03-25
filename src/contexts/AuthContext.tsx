@@ -7,6 +7,7 @@ import {
 } from "react";
 import {
   login as apiLogin,
+  register as apiRegister,
   logout as apiLogout,
   refreshToken,
   getMe,
@@ -16,6 +17,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: { name: string; email: string } | null;
   login: (email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
 }
 
@@ -23,15 +25,12 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(
-    null,
-  );
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const isAuthenticated = !!token;
 
-  // ✅ LOGIN REAL
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const data = await apiLogin(email, password); // backend → { user, token }
+      const data = await apiLogin(email, password);
       setToken(data.token);
       setUser(data.user);
       localStorage.setItem("access_token", data.token);
@@ -42,29 +41,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // ✅ LOGOUT REAL
+  const register = async (name: string, email: string, password: string): Promise<boolean> => {
+    try {
+      const data = await apiRegister({ name, email, password });
+      setToken(data.token);
+      setUser(data.user);
+      localStorage.setItem("access_token", data.token);
+      return true;
+    } catch (err) {
+      console.error("Error en registro:", err);
+      return false;
+    }
+  };
+
   const logout = async () => {
     try {
-      await apiLogout(); // limpia cookie refreshToken en backend
+      await apiLogout();
       localStorage.removeItem("access_token");
     } catch (err) {
       console.error("Error en logout:", err);
     }
-
     setToken(null);
     setUser(null);
   };
 
-  // ✅ Al iniciar, intentamos recuperar sesión desde refresh token
   useEffect(() => {
     const initialize = async () => {
       try {
         const newToken = await refreshToken();
-
         if (newToken) {
           setToken(newToken);
           localStorage.setItem("access_token", newToken);
-
           const me = await getMe(newToken);
           setUser({ name: me.name, email: me.email });
         }
@@ -72,19 +79,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log("No hay sesión activa.");
       }
     };
-
     initialize();
   }, []);
 
   return (
-    <AuthContext.Provider
-      value={{
-        isAuthenticated,
-        user,
-        login,
-        logout,
-      }}
-    >
+    <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

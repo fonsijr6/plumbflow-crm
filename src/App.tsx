@@ -12,6 +12,8 @@ import ClientsPage from "@/pages/ClientsPage";
 import StockPage from "@/pages/StockPage";
 import TasksPage from "@/pages/TaskPage";
 import ClientDetailPage from "@/pages/ClientDetailPage";
+import InvoicesPage from "@/pages/InvoicesPage";
+import InvoiceDetailPage from "@/pages/InvoiceDetailPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,7 +39,6 @@ const App = () => (
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            {/* RUTA PÚBLICA */}
             <Route
               path="/login"
               element={
@@ -47,10 +48,8 @@ const App = () => (
               }
             />
 
-            {/* REDIRECCIÓN A DASHBOARD */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-            {/* RUTAS PRIVADAS */}
             <Route
               element={
                 <ProtectedRoute>
@@ -59,19 +58,14 @@ const App = () => (
               }
             >
               <Route path="/dashboard" element={<DashboardPage />} />
-
-              {/* CLIENTES */}
               <Route path="/clients" element={<ClientsPage />} />
               <Route path="/clients/:id" element={<ClientDetailPage />} />
-
-              {/* STOCK */}
               <Route path="/stock" element={<StockPage />} />
-
-              {/* TAREAS */}
+              <Route path="/invoices" element={<InvoicesPage />} />
+              <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
               <Route path="/tasks" element={<TasksPage />} />
             </Route>
 
-            {/* NOT FOUND */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
