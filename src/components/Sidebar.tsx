@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import {
   Users,
   Package,
@@ -11,8 +12,11 @@ import {
   FileText,
   Menu,
   X,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 
 const links = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -24,6 +28,7 @@ const links = [
 
 const Sidebar = () => {
   const { logout, user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -68,7 +73,19 @@ const Sidebar = () => {
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border px-3 py-4">
+      <div className="border-t border-sidebar-border px-3 py-4 space-y-3">
+        <div className="flex items-center justify-between px-3">
+          <div className="flex items-center gap-2 text-xs font-medium text-sidebar-foreground/70">
+            <Sun className="h-3.5 w-3.5" />
+            <span>Tema</span>
+            <Moon className="h-3.5 w-3.5" />
+          </div>
+          <Switch
+            checked={theme === "dark"}
+            onCheckedChange={toggleTheme}
+            className="data-[state=checked]:bg-sidebar-primary data-[state=unchecked]:bg-sidebar-accent"
+          />
+        </div>
         <div className="mb-3 px-3">
           <p className="truncate text-xs font-medium text-sidebar-foreground">
             {user?.name}
