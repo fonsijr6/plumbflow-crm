@@ -16,6 +16,7 @@ export interface StockItem {
   unit: string;
   unitPrice: number;
   minStock: number;
+  images?: string[];
 }
 
 export interface Task {
