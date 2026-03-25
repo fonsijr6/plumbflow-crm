@@ -1,6 +1,11 @@
 import { useState, useMemo } from "react";
 import {
-  ChevronLeft, ChevronRight, Clock, MapPin, Play, CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  MapPin,
+  Play,
+  CheckCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,14 +54,24 @@ const TasksPage = () => {
     onError: () => toast.error("Error updating task"),
   });
 
-  const handleStatus = (id: string, status: "pending" | "in_progress" | "completed") => {
+  const handleStatus = (
+    id: string,
+    status: "pending" | "in_progress" | "completed",
+  ) => {
     const next = status === "pending" ? "in_progress" : "completed";
     updateMutation.mutate({ id, payload: { status: next } });
-    toast.success(next === "in_progress" ? "Tarea iniciada" : "Tarea completada");
+    toast.success(
+      next === "in_progress" ? "Tarea iniciada" : "Tarea completada",
+    );
   };
 
   const formatDate = (d: Date) =>
-    d.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    d.toLocaleDateString("es-ES", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
 
   const weekDays = useMemo(() => {
     const days: Date[] = [];
@@ -69,19 +84,28 @@ const TasksPage = () => {
   }, [dayOffset]);
 
   if (isLoading) {
-    return <p className="py-12 text-center text-muted-foreground">Cargando tareas...</p>;
+    return (
+      <p className="py-12 text-center text-muted-foreground">
+        Cargando avisos...
+      </p>
+    );
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Agenda</h1>
-        <p className="text-sm text-muted-foreground mt-1">Planifica tu trabajo</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Planifica tu trabajo
+        </p>
       </div>
 
       {/* Week strip */}
       <div className="flex items-center gap-1 sm:gap-2">
-        <button onClick={() => setDayOffset((p) => p - 1)} className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary shrink-0">
+        <button
+          onClick={() => setDayOffset((p) => p - 1)}
+          className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary shrink-0"
+        >
           <ChevronLeft className="h-4 w-4" />
         </button>
 
@@ -105,22 +129,33 @@ const TasksPage = () => {
                 <span className="uppercase font-medium">
                   {d.toLocaleDateString("es-ES", { weekday: "short" })}
                 </span>
-                <span className={`text-base sm:text-lg font-semibold ${isSelected ? "" : "text-foreground"}`}>
+                <span
+                  className={`text-base sm:text-lg font-semibold ${isSelected ? "" : "text-foreground"}`}
+                >
                   {d.getDate()}
                 </span>
-                {hasTasks && !isSelected && <div className="h-1 w-1 rounded-full bg-primary mt-0.5" />}
-                {isToday && !isSelected && <div className="h-0.5 w-3 rounded-full bg-accent mt-0.5" />}
+                {hasTasks && !isSelected && (
+                  <div className="h-1 w-1 rounded-full bg-primary mt-0.5" />
+                )}
+                {isToday && !isSelected && (
+                  <div className="h-0.5 w-3 rounded-full bg-accent mt-0.5" />
+                )}
               </button>
             );
           })}
         </div>
 
-        <button onClick={() => setDayOffset((p) => p + 1)} className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary shrink-0">
+        <button
+          onClick={() => setDayOffset((p) => p + 1)}
+          className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary shrink-0"
+        >
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
 
-      <p className="text-center text-sm font-medium capitalize">{formatDate(selectedDate)}</p>
+      <p className="text-center text-sm font-medium capitalize">
+        {formatDate(selectedDate)}
+      </p>
 
       {/* Lista */}
       <AnimatePresence mode="wait">
@@ -135,12 +170,17 @@ const TasksPage = () => {
           {tasksOfDay.length === 0 ? (
             <Card className="border shadow-sm">
               <CardContent className="py-12 text-center">
-                <p className="text-sm text-muted-foreground">No hay tareas para este día</p>
+                <p className="text-sm text-muted-foreground">
+                  No hay avisos para este día
+                </p>
               </CardContent>
             </Card>
           ) : (
             tasksOfDay.map((task) => (
-              <Card key={task.id} className="border shadow-sm transition-all hover:shadow-md">
+              <Card
+                key={task.id}
+                className="border shadow-sm transition-all hover:shadow-md"
+              >
                 <CardContent className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4 p-3 sm:p-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-semibold text-sm">
                     {task.time.split(":")[0]}h
@@ -149,23 +189,44 @@ const TasksPage = () => {
                   <div className="flex-1 space-y-1 min-w-0">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <p className="font-medium text-sm">{task.description}</p>
-                      <Badge variant="outline" className={statusColor[task.status]}>
+                      <Badge
+                        variant="outline"
+                        className={statusColor[task.status]}
+                      >
                         {statusLabel[task.status]}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">{task.clientName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {task.clientName}
+                    </p>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{task.time}</span>
-                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{task.address}</span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {task.time}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {task.address}
+                      </span>
                     </div>
                   </div>
 
                   {task.status !== "completed" && (
-                    <Button variant="outline" size="sm" className="shrink-0 self-start" onClick={() => handleStatus(task.id, task.status)} disabled={updateMutation.isPending}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 self-start"
+                      onClick={() => handleStatus(task.id, task.status)}
+                      disabled={updateMutation.isPending}
+                    >
                       {task.status === "pending" ? (
-                        <><Play className="mr-1 h-3 w-3" /> Empezar</>
+                        <>
+                          <Play className="mr-1 h-3 w-3" /> Empezar
+                        </>
                       ) : (
-                        <><CheckCircle className="mr-1 h-3 w-3" /> Completar</>
+                        <>
+                          <CheckCircle className="mr-1 h-3 w-3" /> Completar
+                        </>
                       )}
                     </Button>
                   )}

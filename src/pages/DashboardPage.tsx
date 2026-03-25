@@ -41,10 +41,19 @@ const DashboardPage = () => {
   const queryClient = useQueryClient();
   const [dayOffset, setDayOffset] = useState(0);
 
-  const { data: clients } = useQuery({ queryKey: ["clients"], queryFn: getClients });
+  const { data: clients } = useQuery({
+    queryKey: ["clients"],
+    queryFn: getClients,
+  });
   const { data: stock } = useQuery({ queryKey: ["stock"], queryFn: getStock });
-  const { data: tasks } = useQuery({ queryKey: ["tasks"], queryFn: () => getTasks() });
-  const { data: invoices } = useQuery({ queryKey: ["invoices"], queryFn: () => getInvoices() });
+  const { data: tasks } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: () => getTasks(),
+  });
+  const { data: invoices } = useQuery({
+    queryKey: ["invoices"],
+    queryFn: () => getInvoices(),
+  });
 
   const selectedDate = useMemo(() => {
     const d = new Date();
@@ -56,7 +65,11 @@ const DashboardPage = () => {
   const tareasDelDia = tasks?.filter((t: Task) => t.date === dateStr) ?? [];
 
   const formatDate = (date: Date) =>
-    date.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
+    date.toLocaleDateString("es-ES", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: Task["status"] }) =>
@@ -68,7 +81,9 @@ const DashboardPage = () => {
   const handleEstado = (id: string, status: Task["status"]) => {
     const next = status === "pending" ? "in_progress" : "completed";
     updateMutation.mutate({ id, status: next });
-    toast.success(next === "in_progress" ? "Tarea iniciada" : "Tarea finalizada");
+    toast.success(
+      next === "in_progress" ? "Tarea iniciada" : "Tarea finalizada",
+    );
   };
 
   return (
@@ -78,18 +93,27 @@ const DashboardPage = () => {
         <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
           {user?.name || "Dashboard"}
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">Resumen de tu actividad</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Resumen de tu actividad
+        </p>
       </div>
 
       {/* STATS */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         {[
           { label: "Clientes", value: clients?.length ?? 0, icon: Users },
-          { label: "Stock", value: stock?.reduce((a, i) => a + i.quantity, 0) ?? 0, icon: Package },
+          {
+            label: "Stock",
+            value: stock?.reduce((a, i) => a + i.quantity, 0) ?? 0,
+            icon: Package,
+          },
           { label: "Facturas", value: invoices?.length ?? 0, icon: FileText },
           {
-            label: "Tareas hoy",
-            value: tasks?.filter((t: Task) => t.date === new Date().toISOString().split("T")[0]).length ?? 0,
+            label: "Avisos para hoy",
+            value:
+              tasks?.filter(
+                (t: Task) => t.date === new Date().toISOString().split("T")[0],
+              ).length ?? 0,
             icon: CalendarDays,
           },
         ].map(({ label, value, icon: Icon }) => (
@@ -110,16 +134,31 @@ const DashboardPage = () => {
       {/* AGENDA */}
       <Card className="border shadow-sm">
         <CardHeader className="flex-col sm:flex-row sm:justify-between gap-3">
-          <CardTitle className="text-lg font-semibold">Agenda del día</CardTitle>
+          <CardTitle className="text-lg font-semibold">
+            Agenda del día
+          </CardTitle>
           <div className="flex items-center gap-2">
-            <button onClick={() => setDayOffset((p) => p - 1)} className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground">
+            <button
+              onClick={() => setDayOffset((p) => p - 1)}
+              className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground"
+            >
               <ChevronLeft className="h-4 w-4" />
             </button>
             <span className="min-w-[140px] sm:min-w-[180px] text-center text-sm font-medium capitalize">
-              {dayOffset === 0 ? "Hoy" : dayOffset === 1 ? "Mañana" : dayOffset === -1 ? "Ayer" : ""}
-              {" — "}{formatDate(selectedDate)}
+              {dayOffset === 0
+                ? "Hoy"
+                : dayOffset === 1
+                  ? "Mañana"
+                  : dayOffset === -1
+                    ? "Ayer"
+                    : ""}
+              {" — "}
+              {formatDate(selectedDate)}
             </span>
-            <button onClick={() => setDayOffset((p) => p + 1)} className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground">
+            <button
+              onClick={() => setDayOffset((p) => p + 1)}
+              className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground"
+            >
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
@@ -137,7 +176,7 @@ const DashboardPage = () => {
             >
               {tareasDelDia.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  No hay tareas programadas para este día
+                  No hay avisos programados para este día
                 </p>
               ) : (
                 tareasDelDia.map((task) => (
@@ -151,24 +190,46 @@ const DashboardPage = () => {
 
                     <div className="flex-1 space-y-1 min-w-0">
                       <div className="flex flex-wrap justify-between items-start gap-2">
-                        <p className="text-sm font-medium">{task.description}</p>
-                        <Badge variant="outline" className={estadoColor[task.status]}>
+                        <p className="text-sm font-medium">
+                          {task.description}
+                        </p>
+                        <Badge
+                          variant="outline"
+                          className={estadoColor[task.status]}
+                        >
                           {estadoLabel[task.status]}
                         </Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground">{task.clientName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {task.clientName}
+                      </p>
                       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{task.time}</span>
-                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{task.address}</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {task.time}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {task.address}
+                        </span>
                       </div>
                     </div>
 
                     {task.status !== "completed" && (
-                      <Button variant="outline" size="sm" className="shrink-0 self-start" onClick={() => handleEstado(task.id, task.status)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0 self-start"
+                        onClick={() => handleEstado(task.id, task.status)}
+                      >
                         {task.status === "pending" ? (
-                          <><Play className="mr-1 h-3 w-3" /> Iniciar</>
+                          <>
+                            <Play className="mr-1 h-3 w-3" /> Iniciar
+                          </>
                         ) : (
-                          <><CheckCircle className="mr-1 h-3 w-3" /> Finalizar</>
+                          <>
+                            <CheckCircle className="mr-1 h-3 w-3" /> Finalizar
+                          </>
                         )}
                       </Button>
                     )}

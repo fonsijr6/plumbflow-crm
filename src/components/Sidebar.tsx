@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 
 const links = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/dashboard", label: "Inicio", icon: LayoutDashboard },
   { to: "/clients", label: "Clientes", icon: Users },
   { to: "/stock", label: "Stock", icon: Package },
   { to: "/invoices", label: "Facturas", icon: FileText },
@@ -40,7 +40,7 @@ const Sidebar = () => {
             <Wrench className="h-4 w-4 text-sidebar-primary-foreground" />
           </div>
           <span className="text-sm font-semibold text-sidebar-primary-foreground tracking-tight">
-            FontaneroCRM
+            Plumiks CRM
           </span>
         </div>
         <button
