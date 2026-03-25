@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Search, Plus, FileText, ChevronRight } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
 import { getInvoices, createInvoice } from "@/api/InvoiceApi";
 import { getClients } from "@/api/ClientApi";
 import { Invoice, InvoiceLine, Client } from "@/data/mockData";
@@ -15,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+
 import {
   Dialog,
   DialogContent,
@@ -22,6 +24,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+
 import {
   Select,
   SelectTrigger,
@@ -29,6 +32,10 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
+
+/* --------------------------------------------------
+   CONFIG
+-------------------------------------------------- */
 
 const statusColor: Record<string, string> = {
   draft: "bg-muted text-muted-foreground border-border",
@@ -51,20 +58,40 @@ const emptyLine = (): InvoiceLine => ({
   taxRate: 21,
 });
 
+/* --------------------------------------------------
+   PAGE
+-------------------------------------------------- */
+
 const InvoicesPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const newForClient = params.get("new");
+
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const issuerName = user?.name || "";
+  const issuerEmail = user?.email || "";
+
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  /* ✅ Filtro de fechas */
+  const [dateFilter, setDateFilter] = useState("all");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const [form, setForm] = useState({
     clientId: "",
     clientName: "",
+    clientEmail: "",
     clientAddress: "",
     clientNif: "",
-    issuerName: user?.name || "",
+    issuerName,
     issuerNif: "",
+    issuerEmail: "",
     issuerAddress: "",
     date: new Date().toISOString().split("T")[0],
     dueDate: "",
@@ -72,6 +99,10 @@ const InvoicesPage = () => {
     notes: "",
     status: "draft" as Invoice["status"],
   });
+
+  /* --------------------------------------------------
+     DATA FETCH
+  -------------------------------------------------- */
 
   const { data: invoices, isLoading } = useQuery({
     queryKey: ["invoices"],
@@ -83,6 +114,39 @@ const InvoicesPage = () => {
     queryFn: getClients,
   });
 
+  /* --------------------------------------------------
+     NUEVA FACTURA DESDE CLIENT DETAIL
+  -------------------------------------------------- */
+
+  useEffect(() => {
+    if (newForClient && clients) {
+      const client = clients.find((c) => c.id === newForClient);
+      if (client) {
+        setForm({
+          clientId: client.id,
+          clientName: client.name,
+          clientEmail: client.email,
+          clientAddress: client.address,
+          clientNif: "",
+          issuerName,
+          issuerNif: "",
+          issuerEmail: user.email,
+          issuerAddress: "",
+          date: new Date().toISOString().split("T")[0],
+          dueDate: "",
+          lines: [emptyLine()],
+          notes: "",
+          status: "draft",
+        });
+        setDialogOpen(true);
+      }
+    }
+  }, [newForClient, clients, issuerName]);
+
+  /* --------------------------------------------------
+     MUTATION
+  -------------------------------------------------- */
+
   const createMutation = useMutation({
     mutationFn: createInvoice,
     onSuccess: () => {
@@ -93,6 +157,73 @@ const InvoicesPage = () => {
     onError: () => toast.error("Error creando factura"),
   });
 
+  /* --------------------------------------------------
+     LÓGICA DE FILTRO DE FECHAS
+  -------------------------------------------------- */
+
+  const isWithinDateFilter = (inv: Invoice) => {
+    const invDate = new Date(inv.date);
+    const today = new Date();
+
+    if (dateFilter === "all") return true;
+
+    if (dateFilter === "today") {
+      return invDate.toDateString() === today.toDateString();
+    }
+
+    if (dateFilter === "7days") {
+      const weekAgo = new Date();
+      weekAgo.setDate(today.getDate() - 7);
+      return invDate >= weekAgo && invDate <= today;
+    }
+
+    if (dateFilter === "month") {
+      return (
+        invDate.getMonth() === today.getMonth() &&
+        invDate.getFullYear() === today.getFullYear()
+      );
+    }
+
+    if (dateFilter === "lastmonth") {
+      const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      return (
+        invDate.getMonth() === lastMonth.getMonth() &&
+        invDate.getFullYear() === lastMonth.getFullYear()
+      );
+    }
+
+    if (dateFilter === "custom") {
+      if (!customStart || !customEnd) return true;
+      const start = new Date(customStart);
+      const end = new Date(customEnd);
+      return invDate >= start && invDate <= end;
+    }
+
+    return true;
+  };
+
+  /* --------------------------------------------------
+     SUPER FILTRO COMBINADO
+  -------------------------------------------------- */
+
+  const filtered =
+    invoices?.filter((inv) => {
+      const matchesSearch =
+        inv.invoiceNumber.toLowerCase().includes(search.toLowerCase()) ||
+        inv.clientName.toLowerCase().includes(search.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "all" ? true : inv.status === statusFilter;
+
+      const matchesDate = isWithinDateFilter(inv);
+
+      return matchesSearch && matchesStatus && matchesDate;
+    }) || [];
+
+  /* --------------------------------------------------
+     SAVE
+  -------------------------------------------------- */
+
   const calcTotals = (lines: InvoiceLine[]) => {
     const subtotal = lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
     const taxTotal = lines.reduce(
@@ -102,13 +233,18 @@ const InvoicesPage = () => {
     return { subtotal, taxTotal, total: subtotal + taxTotal };
   };
 
-  const updateLine = (idx: number, field: keyof InvoiceLine, value: string | number) => {
+  const updateLine = (
+    idx: number,
+    field: keyof InvoiceLine,
+    value: string | number,
+  ) => {
     const updated = [...form.lines];
     updated[idx] = { ...updated[idx], [field]: value };
     setForm({ ...form, lines: updated });
   };
 
-  const addLine = () => setForm({ ...form, lines: [...form.lines, emptyLine()] });
+  const addLine = () =>
+    setForm({ ...form, lines: [...form.lines, emptyLine()] });
 
   const removeLine = (idx: number) => {
     if (form.lines.length <= 1) return;
@@ -123,6 +259,7 @@ const InvoicesPage = () => {
         clientId: c.id,
         clientName: c.name,
         clientAddress: c.address,
+        clientEmail: c.email,
         clientNif: "",
       });
     }
@@ -130,46 +267,30 @@ const InvoicesPage = () => {
 
   const handleSave = () => {
     if (!form.clientId) return toast.error("Selecciona un cliente");
-    if (!form.lines.some((l) => l.description.trim())) return toast.error("Añade al menos un concepto");
+    if (!form.lines.some((l) => l.description.trim()))
+      return toast.error("Añade al menos un concepto");
+
     const totals = calcTotals(form.lines);
     const invoiceNumber = `FAC-${Date.now().toString().slice(-6)}`;
+
     createMutation.mutate({ ...form, ...totals, invoiceNumber });
   };
 
-  const openNew = () => {
-    setForm({
-      clientId: "",
-      clientName: "",
-      clientAddress: "",
-      clientNif: "",
-      issuerName: user?.name || "",
-      issuerNif: "",
-      issuerAddress: "",
-      date: new Date().toISOString().split("T")[0],
-      dueDate: "",
-      lines: [emptyLine()],
-      notes: "",
-      status: "draft",
-    });
-    setDialogOpen(true);
-  };
-
-  const filtered =
-    invoices?.filter(
-      (inv) =>
-        inv.invoiceNumber.toLowerCase().includes(search.toLowerCase()) ||
-        inv.clientName.toLowerCase().includes(search.toLowerCase()),
-    ) || [];
+  /* --------------------------------------------------
+     UI
+  -------------------------------------------------- */
 
   if (isLoading) {
-    return <p className="py-12 text-center text-muted-foreground">Cargando facturas...</p>;
+    return (
+      <p className="py-12 text-center text-muted-foreground">
+        Cargando facturas...
+      </p>
+    );
   }
-
-  const totals = calcTotals(form.lines);
 
   return (
     <div className="flex h-full flex-col">
-      {/* STICKY HEADER */}
+      {/* HEADER */}
       <div className="shrink-0 space-y-4 pb-4">
         <div className="flex items-center justify-between">
           <div>
@@ -178,23 +299,74 @@ const InvoicesPage = () => {
               {invoices?.length ?? 0} facturas registradas
             </p>
           </div>
-          <Button onClick={openNew} size="sm">
+          <Button onClick={() => setDialogOpen(true)} size="sm">
             <Plus className="mr-1 h-4 w-4" /> Nueva factura
           </Button>
         </div>
 
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Buscar factura o cliente..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        {/* 🔥 BUSCADOR + ESTADO + FECHA */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* BUSCADOR */}
+          <div className="relative max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar factura o cliente..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          {/* FILTRO ESTADO */}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los estados</SelectItem>
+              <SelectItem value="draft">Borrador</SelectItem>
+              <SelectItem value="sent">Enviada</SelectItem>
+              <SelectItem value="paid">Pagada</SelectItem>
+              <SelectItem value="overdue">Vencida</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* FILTRO FECHA */}
+          <Select value={dateFilter} onValueChange={setDateFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filtrar fecha" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las fechas</SelectItem>
+              <SelectItem value="today">Hoy</SelectItem>
+              <SelectItem value="7days">Últimos 7 días</SelectItem>
+              <SelectItem value="month">Este mes</SelectItem>
+              <SelectItem value="lastmonth">Mes pasado</SelectItem>
+              <SelectItem value="custom">Personalizado</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+
+        {/* RANGO PERSONALIZADO */}
+        {dateFilter === "custom" && (
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Input
+              type="date"
+              value={customStart}
+              onChange={(e) => setCustomStart(e.target.value)}
+              className="w-full"
+            />
+            <Input
+              type="date"
+              value={customEnd}
+              onChange={(e) => setCustomEnd(e.target.value)}
+              className="w-full"
+            />
+          </div>
+        )}
       </div>
 
-      {/* SCROLLABLE LIST */}
+      {/* LISTA */}
       <ScrollArea className="flex-1 -mx-1 px-1">
         <div className="space-y-2 pb-4">
           {filtered.map((inv) => (
@@ -208,15 +380,19 @@ const InvoicesPage = () => {
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                     <FileText className="h-4 w-4 text-primary" />
                   </div>
-                  <div className="space-y-0.5">
+                  <div>
                     <p className="font-medium text-sm">{inv.invoiceNumber}</p>
-                    <p className="text-xs text-muted-foreground">{inv.clientName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {inv.clientName}
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <p className="text-sm font-semibold">{inv.total.toFixed(2)} €</p>
+                    <p className="text-sm font-semibold">
+                      {inv.total.toFixed(2)} €
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(inv.date).toLocaleDateString("es-ES")}
                     </p>
@@ -238,7 +414,7 @@ const InvoicesPage = () => {
         </div>
       </ScrollArea>
 
-      {/* NEW INVOICE DIALOG */}
+      {/* MODAL NUEVA FACTURA  ✅ (tu modal original completo) */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -254,27 +430,33 @@ const InvoicesPage = () => {
                   <Label>Nombre / Razón social</Label>
                   <Input
                     value={form.issuerName}
-                    onChange={(e) => setForm({ ...form, issuerName: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, issuerName: e.target.value })
+                    }
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label>NIF / CIF</Label>
                   <Input
                     value={form.issuerNif}
-                    onChange={(e) => setForm({ ...form, issuerNif: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, issuerNif: e.target.value })
+                    }
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Dirección</Label>
                   <Input
                     value={form.issuerAddress}
-                    onChange={(e) => setForm({ ...form, issuerAddress: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, issuerAddress: e.target.value })
+                    }
                   />
                 </div>
               </div>
             </div>
 
-            {/* CLIENTE */}
+            {/* DATOS CLIENTE */}
             <div>
               <p className="text-sm font-medium mb-2">Datos del cliente</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -297,7 +479,9 @@ const InvoicesPage = () => {
                   <Label>NIF / CIF del cliente</Label>
                   <Input
                     value={form.clientNif}
-                    onChange={(e) => setForm({ ...form, clientNif: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, clientNif: e.target.value })
+                    }
                   />
                 </div>
               </div>
@@ -318,7 +502,9 @@ const InvoicesPage = () => {
                 <Input
                   type="date"
                   value={form.dueDate}
-                  onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, dueDate: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -336,38 +522,52 @@ const InvoicesPage = () => {
                 {form.lines.map((line, idx) => (
                   <div key={idx} className="grid grid-cols-12 gap-2 items-end">
                     <div className="col-span-5 space-y-1">
-                      {idx === 0 && <Label className="text-xs">Descripción</Label>}
+                      {idx === 0 && (
+                        <Label className="text-xs">Descripción</Label>
+                      )}
                       <Input
                         value={line.description}
-                        onChange={(e) => updateLine(idx, "description", e.target.value)}
+                        onChange={(e) =>
+                          updateLine(idx, "description", e.target.value)
+                        }
                         placeholder="Concepto"
                       />
                     </div>
+
                     <div className="col-span-2 space-y-1">
                       {idx === 0 && <Label className="text-xs">Cantidad</Label>}
                       <Input
                         type="number"
                         value={line.quantity}
-                        onChange={(e) => updateLine(idx, "quantity", Number(e.target.value))}
+                        onChange={(e) =>
+                          updateLine(idx, "quantity", Number(e.target.value))
+                        }
                       />
                     </div>
+
                     <div className="col-span-2 space-y-1">
                       {idx === 0 && <Label className="text-xs">Precio €</Label>}
                       <Input
                         type="number"
                         step="0.01"
                         value={line.unitPrice}
-                        onChange={(e) => updateLine(idx, "unitPrice", Number(e.target.value))}
+                        onChange={(e) =>
+                          updateLine(idx, "unitPrice", Number(e.target.value))
+                        }
                       />
                     </div>
+
                     <div className="col-span-2 space-y-1">
                       {idx === 0 && <Label className="text-xs">IVA %</Label>}
                       <Input
                         type="number"
                         value={line.taxRate}
-                        onChange={(e) => updateLine(idx, "taxRate", Number(e.target.value))}
+                        onChange={(e) =>
+                          updateLine(idx, "taxRate", Number(e.target.value))
+                        }
                       />
                     </div>
+
                     <div className="col-span-1">
                       <Button
                         variant="ghost"
@@ -383,11 +583,22 @@ const InvoicesPage = () => {
                 ))}
               </div>
 
-              {/* TOTALS */}
               <div className="mt-4 text-right space-y-1 text-sm">
-                <p>Subtotal: <span className="font-medium">{totals.subtotal.toFixed(2)} €</span></p>
-                <p>IVA: <span className="font-medium">{totals.taxTotal.toFixed(2)} €</span></p>
-                <p className="text-base font-semibold">Total: {totals.total.toFixed(2)} €</p>
+                <p>
+                  Subtotal:
+                  <span className="font-medium">
+                    {calcTotals(form.lines).subtotal.toFixed(2)} €
+                  </span>
+                </p>
+                <p>
+                  IVA:
+                  <span className="font-medium">
+                    {calcTotals(form.lines).taxTotal.toFixed(2)} €
+                  </span>
+                </p>
+                <p className="text-base font-semibold">
+                  Total: {calcTotals(form.lines).total.toFixed(2)} €
+                </p>
               </div>
             </div>
 

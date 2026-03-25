@@ -41,9 +41,11 @@ export interface Invoice {
   invoiceNumber: string;
   clientId: string;
   clientName: string;
+  clientEmail?: string;
   clientAddress: string;
   clientNif: string;
   issuerName: string;
+  issuerEmail?: string;
   issuerNif: string;
   issuerAddress: string;
   date: string;
