@@ -103,7 +103,7 @@ const LoginPage = () => {
           <p className="text-sm text-muted-foreground">
             {isRegister
               ? "Crea tu cuenta para gestionar tu negocio"
-              : "Gestiona tu negocio de fontanería"}
+              : "Gestiona tu negocio"}
           </p>
         </div>
 
