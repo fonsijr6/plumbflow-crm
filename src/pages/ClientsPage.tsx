@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Phone, Mail, ChevronRight, Plus } from "lucide-react";
+import { Search, Phone, Mail, ChevronRight, Plus, Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getClients, createClient } from "@/api/ClientApi";
 import { Client } from "@/data/mockData";
@@ -64,7 +64,9 @@ const ClientsPage = () => {
 
   if (isLoading) {
     return (
-      <p className="text-center py-12 text-muted-foreground">Cargando clientes...</p>
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
     );
   }
 

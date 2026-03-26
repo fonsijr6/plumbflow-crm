@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { StockItem } from "@/data/mockData";
-import { Search, AlertTriangle, Plus, Pencil, Trash2 } from "lucide-react";
+import { Search, AlertTriangle, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -123,7 +123,11 @@ const StockPage = () => {
   };
 
   if (isLoading) {
-    return <p className="py-12 text-center text-muted-foreground">Cargando stock...</p>;
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
