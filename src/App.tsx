@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
+
+import { Toaster as Sonner } from "@/components/ui/sonner"; // ✅ CORRECTO SEGÚN TU ARCHIVO
+import { TooltipProvider } from "@/components/ui/tooltip"; // ✅ CORRECTO SEGÚN TU ARCHIVO
+
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
@@ -15,8 +16,8 @@ import TasksPage from "@/pages/TaskPage";
 import ClientDetailPage from "@/pages/ClientDetailPage";
 import InvoicesPage from "@/pages/InvoicesPage";
 import InvoiceDetailPage from "@/pages/InvoiceDetailPage";
+import TaskDetailPage from "@/pages/TaskDetailPage";
 import NotFound from "@/pages/NotFound";
-import TaskDetailPage from "./pages/TaskDetailPage";
 
 const queryClient = new QueryClient();
 
@@ -36,9 +37,7 @@ const App = () => (
   <ThemeProvider>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-
+        <Sonner /> {/* ✅ ESTA ES TU ÚNICA TOASTER REAL */}
         <AuthProvider>
           <BrowserRouter>
             <Routes>
