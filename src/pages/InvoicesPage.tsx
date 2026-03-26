@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Search, Plus, FileText, ChevronRight, Loader2 } from "lucide-react";
+import { Search, Plus, FileText, ChevronRight, Loader2, Home } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { getInvoices, createInvoice } from "@/api/InvoiceApi";
 import { getClients } from "@/api/ClientApi";
 import { Invoice, InvoiceLine, Client } from "@/data/mockData";
 import { useAuth } from "@/contexts/AuthContext";
+import { validateInvoiceForm, formatCurrency } from "@/lib/validators";
 
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
