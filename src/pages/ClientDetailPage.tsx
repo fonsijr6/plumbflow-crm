@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { validateClientForm, validateTaskForm } from "@/lib/validators";
 import {
   ChevronLeft,
   Phone,
@@ -186,7 +187,15 @@ const ClientDetailPage = () => {
   };
 
   const saveClient = () => {
-    if (!form.name?.trim()) return toast.error("El nombre es obligatorio");
+    const errors = validateClientForm({
+      name: form.name || "",
+      phone: form.phone || "",
+      email: form.email || "",
+    });
+    if (errors.length) {
+      toast.error(errors[0].message);
+      return;
+    }
     updateClientMutation.mutate({ id: id!, payload: form });
     setEditOpen(false);
   };
@@ -212,8 +221,11 @@ const ClientDetailPage = () => {
   };
 
   const saveTask = () => {
-    if (!taskForm.description?.trim())
-      return toast.error("La descripción es obligatoria");
+    const errors = validateTaskForm(taskForm);
+    if (errors.length) {
+      toast.error(errors[0].message);
+      return;
+    }
 
     if (editingTask) {
       updateTaskMutation.mutate({ id: editingTask.id, payload: taskForm });
