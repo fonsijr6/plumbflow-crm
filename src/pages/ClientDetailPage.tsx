@@ -1,4 +1,5 @@
-import { useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { validateClientForm, validateTaskForm } from "@/lib/validators";
 import {
@@ -14,6 +15,8 @@ import {
   Trash2,
   FileText,
   Loader2,
+  Camera,
+  X,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -45,6 +48,7 @@ import {
   SelectValue,
   SelectItem,
 } from "@/components/ui/select";
+import { uploadImageToCloudinary } from "@/utils/uploadImage";
 
 const statusLabel: Record<string, string> = {
   pending: "Pendiente",
@@ -133,6 +137,7 @@ const ClientDetailPage = () => {
   const [taskOpen, setTaskOpen] = useState(false);
   const [taskForm, setTaskForm] = useState<Partial<Task>>({});
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   /* ✅ STATES FILTROS AVISOS */
   const [taskStatusFilter, setTaskStatusFilter] = useState("all");
@@ -198,6 +203,19 @@ const ClientDetailPage = () => {
     }
     updateClientMutation.mutate({ id: id!, payload: form });
     setEditOpen(false);
+  };
+
+  const handleModalPhotoChange = async (files: FileList | null) => {
+    if (!files) return;
+
+    const urls = await Promise.all(
+      Array.from(files).map((f) => uploadImageToCloudinary(f)),
+    );
+
+    setTaskForm((prev) => ({
+      ...prev,
+      images: [...(prev.images || []), ...urls],
+    }));
   };
 
   const openNewTask = () => {
@@ -510,7 +528,11 @@ const ClientDetailPage = () => {
                       <div
                         key={inv.id}
                         className="flex items-center justify-between border p-3 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                        onClick={() => navigate(`/invoices/${inv.id}`, { state: { fromClient: id } })}
+                        onClick={() =>
+                          navigate(`/invoices/${inv.id}`, {
+                            state: { fromClient: id },
+                          })
+                        }
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -598,16 +620,20 @@ const ClientDetailPage = () => {
           </DialogHeader>
 
           <div className="space-y-4">
-            <Label>Descripción *</Label>
-            <Input
-              value={taskForm.description || ""}
-              onChange={(e) =>
-                setTaskForm({ ...taskForm, description: e.target.value })
-              }
-            />
+            {/* ✅ Descripción */}
+            <div className="space-y-1.5">
+              <Label>Descripción *</Label>
+              <Input
+                value={taskForm.description || ""}
+                onChange={(e) =>
+                  setTaskForm({ ...taskForm, description: e.target.value })
+                }
+              />
+            </div>
 
+            {/* ✅ Fecha / Hora */}
             <div className="grid grid-cols-2 gap-3">
-              <div>
+              <div className="space-y-1.5">
                 <Label>Fecha</Label>
                 <Input
                   type="date"
@@ -617,7 +643,8 @@ const ClientDetailPage = () => {
                   }
                 />
               </div>
-              <div>
+
+              <div className="space-y-1.5">
                 <Label>Hora</Label>
                 <Input
                   type="time"
@@ -629,21 +656,25 @@ const ClientDetailPage = () => {
               </div>
             </div>
 
-            <Label>Dirección</Label>
-            <Input
-              value={taskForm.address || ""}
-              onChange={(e) =>
-                setTaskForm({ ...taskForm, address: e.target.value })
-              }
-            />
+            {/* ✅ Dirección */}
+            <div className="space-y-1.5">
+              <Label>Dirección</Label>
+              <Input
+                value={taskForm.address || ""}
+                onChange={(e) =>
+                  setTaskForm({ ...taskForm, address: e.target.value })
+                }
+              />
+            </div>
 
+            {/* ✅ Estado SOLO si estás editando */}
             {editingTask && (
-              <>
+              <div className="space-y-1.5">
                 <Label>Estado</Label>
                 <Select
                   value={taskForm.status}
                   onValueChange={(v) =>
-                    setTaskForm({ ...taskForm, status: v as Task["status"] })
+                    setTaskForm({ ...taskForm, status: v as any })
                   }
                 >
                   <SelectTrigger>
@@ -655,15 +686,73 @@ const ClientDetailPage = () => {
                     <SelectItem value="completed">Completada</SelectItem>
                   </SelectContent>
                 </Select>
-              </>
+              </div>
             )}
+
+            {/* ✅ Fotos – Cloudinary */}
+            <div className="space-y-2">
+              <Label>Fotos</Label>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Camera className="h-4 w-4" />
+                Añadir fotos
+              </Button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment" // ✅ Cámara móvil
+                multiple
+                className="hidden"
+                onChange={(e) => handleModalPhotoChange(e.target.files)}
+              />
+
+              {/* ✅ Grid de fotos */}
+              {taskForm.images?.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  {taskForm.images.map((img: string, i: number) => (
+                    <div key={i} className="relative group">
+                      <img
+                        src={img}
+                        className="w-full h-24 object-cover rounded border"
+                      />
+
+                      {/* ✅ Botón eliminar foto */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newImages = taskForm.images.filter(
+                            (_: any, index: number) => index !== i,
+                          );
+                          setTaskForm({ ...taskForm, images: newImages });
+                        }}
+                        className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded opacity-0 group-hover:opacity-100 transition"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
+          {/* ✅ Footer */}
           <DialogFooter>
             <Button variant="outline" onClick={() => setTaskOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={saveTask}>Guardar</Button>
+
+            <Button onClick={saveTask}>
+              {editingTask ? "Guardar cambios" : "Crear tarea"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

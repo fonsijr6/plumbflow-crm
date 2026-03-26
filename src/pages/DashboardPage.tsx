@@ -26,6 +26,7 @@ import { getStock } from "@/api/StockApi";
 import { getTasks, updateTask } from "@/api/TaskApi";
 import { getInvoices } from "@/api/InvoiceApi";
 import { Task } from "@/data/mockData";
+import { uploadImageToCloudinary } from "@/utils/uploadImage";
 
 const estadoColor: Record<string, string> = {
   pending: "bg-warning/15 text-warning-foreground border-warning/30",
@@ -105,24 +106,21 @@ const DashboardPage = () => {
     fileInputRefs.current[taskId]?.click();
   };
 
-  const handleFileChange = (taskId: string, files: FileList | null) => {
+  const handleFileChange = async (taskId: string, files: FileList | null) => {
     if (!files || files.length === 0) return;
-    // Convert files to base64 strings for demo; in production use upload endpoint
-    const promises = Array.from(files).map(
-      (file) =>
-        new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(file);
-        }),
+
+    const task = tareasDelDia.find((t) => t.id === taskId);
+    const existingImages = task?.images || [];
+
+    const uploadPromises = Array.from(files).map((file) =>
+      uploadImageToCloudinary(file),
     );
-    Promise.all(promises).then((base64Images) => {
-      const task = tareasDelDia.find((t) => t.id === taskId);
-      const existingImages = task?.images || [];
-      photoMutation.mutate({
-        id: taskId,
-        images: [...existingImages, ...base64Images],
-      });
+
+    const urls = await Promise.all(uploadPromises);
+
+    photoMutation.mutate({
+      id: taskId,
+      images: [...existingImages, ...urls],
     });
   };
 
@@ -297,6 +295,7 @@ const DashboardPage = () => {
                         }}
                         type="file"
                         accept="image/*"
+                        capture="environment" // ✅ activa cámara en móvil
                         multiple
                         className="hidden"
                         onChange={(e) =>

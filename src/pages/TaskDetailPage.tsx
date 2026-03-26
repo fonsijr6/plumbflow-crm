@@ -11,15 +11,16 @@ import {
   Pencil,
   Trash2,
   Camera,
+  X,
 } from "lucide-react";
 
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import { useState, useRef } from "react";
 import { toast } from "sonner";
+
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
 import {
   Select,
   SelectTrigger,
@@ -36,6 +38,8 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
+
+import { uploadImageToCloudinary } from "@/utils/uploadImage";
 
 const estadoColor = {
   pending: "bg-warning/15 text-warning-foreground border-warning/30",
@@ -54,12 +58,12 @@ const TaskDetailPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [taskForm, setTaskForm] = useState<any>({});
   const [editOpen, setEditOpen] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  /* ✅ FETCH */
+  /* ✅ FETCH TASK */
   const { data: task, isLoading } = useQuery({
     queryKey: ["task", id],
     queryFn: () => getTask(id!),
@@ -87,7 +91,7 @@ const TaskDetailPage = () => {
     },
   });
 
-  /* ✅ Abrir modal editar (MISMO QUE EN ClientDetailPage) */
+  /* ✅ Abrir modal de edición */
   const openEditTask = () => {
     setTaskForm({
       description: task.description,
@@ -95,7 +99,9 @@ const TaskDetailPage = () => {
       time: task.time,
       address: task.address,
       status: task.status,
+      images: task.images || [],
     });
+
     setEditOpen(true);
   };
 
@@ -112,31 +118,30 @@ const TaskDetailPage = () => {
     });
   };
 
-  /* ✅ Añadir fotos */
+  /* ✅ Fotos → Cloudinary */
   const handleAddPhotos = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (files: FileList | null) => {
+  const handleFileChange = async (files: FileList | null) => {
     if (!files || !task) return;
 
-    const promises = Array.from(files).map(
-      (file) =>
-        new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(file);
-        }),
+    const urls = await Promise.all(
+      Array.from(files).map((file) => uploadImageToCloudinary(file)),
     );
 
-    Promise.all(promises).then((images) => {
-      const finalImages = [...(task.images || []), ...images];
-
-      updateMutation.mutate({
-        id: task.id,
-        payload: { images: finalImages },
-      });
+    updateMutation.mutate({
+      id: task.id,
+      payload: { images: [...(task.images || []), ...urls] },
     });
+  };
+
+  /* ✅ Quitar foto dentro del modal */
+  const removePhoto = (index: number) => {
+    setTaskForm((prev: any) => ({
+      ...prev,
+      images: prev.images.filter((_: any, i: number) => i !== index),
+    }));
   };
 
   /* ✅ Cambiar estado */
@@ -162,7 +167,7 @@ const TaskDetailPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* ✅ CABECERA STICKY */}
+      {/* ✅ HEADER */}
       <div className="sticky top-0 bg-background border-b pb-3 pt-2 z-20">
         <button
           onClick={() => navigate("/tasks")}
@@ -178,12 +183,10 @@ const TaskDetailPage = () => {
           </div>
 
           <div className="flex gap-2">
-            {/* ✅ EDITAR COMO EN ClientDetailPage */}
             <Button variant="outline" size="sm" onClick={openEditTask}>
               <Pencil className="h-4 w-4 mr-1" /> Editar
             </Button>
 
-            {/* ✅ ELIMINAR COMO EN ClientDetailPage */}
             <Button
               variant="destructive"
               size="sm"
@@ -195,7 +198,7 @@ const TaskDetailPage = () => {
         </div>
       </div>
 
-      {/* ✅ INFORMACIÓN */}
+      {/* ✅ Información */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Información</CardTitle>
@@ -241,7 +244,7 @@ const TaskDetailPage = () => {
         </CardContent>
       </Card>
 
-      {/* ✅ FOTOS */}
+      {/* ✅ Fotos */}
       <Card>
         <CardHeader className="flex justify-between items-center">
           <CardTitle className="text-base">Fotos</CardTitle>
@@ -254,6 +257,7 @@ const TaskDetailPage = () => {
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            capture="environment"
             multiple
             className="hidden"
             onChange={(e) => handleFileChange(e.target.files)}
@@ -280,7 +284,7 @@ const TaskDetailPage = () => {
         </CardContent>
       </Card>
 
-      {/* ✅ MODAL EDITAR (EL MISMO QUE EN ClientDetailPage) */}
+      {/* ✅ MODAL EDITAR */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader>
@@ -335,13 +339,13 @@ const TaskDetailPage = () => {
               />
             </div>
 
-            {/* ✅ Estado (idéntico al de ClientDetailPage) */}
+            {/* ✅ Estado */}
             <div className="space-y-1.5">
               <Label>Estado *</Label>
               <Select
                 value={taskForm.status}
                 onValueChange={(value) =>
-                  setTaskForm({ ...taskForm, status: value as any })
+                  setTaskForm({ ...taskForm, status: value })
                 }
               >
                 <SelectTrigger>
@@ -353,6 +357,63 @@ const TaskDetailPage = () => {
                   <SelectItem value="completed">Completada</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* ✅ FOTOS dentro del modal */}
+            <div className="space-y-2">
+              <Label>Fotos</Label>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1"
+              >
+                <Camera className="h-4 w-4" /> Añadir fotos
+              </Button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                multiple
+                className="hidden"
+                onChange={async (e) => {
+                  const files = e.target.files;
+                  if (!files) return;
+
+                  const urls = await Promise.all(
+                    Array.from(files).map((f) => uploadImageToCloudinary(f)),
+                  );
+
+                  setTaskForm((prev: any) => ({
+                    ...prev,
+                    images: [...(prev.images || []), ...urls],
+                  }));
+                }}
+              />
+
+              {taskForm.images?.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  {taskForm.images.map((img: string, i: number) => (
+                    <div key={i} className="relative group">
+                      <img
+                        src={img}
+                        className="w-full h-24 object-cover rounded border"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(i)}
+                        className="absolute top-1 right-1 bg-red-500 text-white text-xs px-1 rounded opacity-0 group-hover:opacity-100"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
