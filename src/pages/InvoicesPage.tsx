@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Search, Plus, FileText, ChevronRight } from "lucide-react";
+import { Search, Plus, FileText, ChevronRight, Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { getInvoices, createInvoice } from "@/api/InvoiceApi";
@@ -292,9 +292,9 @@ const InvoicesPage = () => {
 
   if (isLoading) {
     return (
-      <p className="py-12 text-center text-muted-foreground">
-        Cargando facturas...
-      </p>
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
     );
   }
 

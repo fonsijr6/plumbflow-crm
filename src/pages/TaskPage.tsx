@@ -6,6 +6,7 @@ import {
   MapPin,
   Play,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
@@ -85,9 +86,9 @@ const TasksPage = () => {
 
   if (isLoading) {
     return (
-      <p className="py-12 text-center text-muted-foreground">
-        Cargando avisos...
-      </p>
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
     );
   }
 

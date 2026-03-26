@@ -12,6 +12,7 @@ import {
   Plus,
   Trash2,
   FileText,
+  Loader2,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -226,9 +227,9 @@ const ClientDetailPage = () => {
   /* ✅ LOADING / ERROR */
   if (loadingClient) {
     return (
-      <p className="py-12 text-center text-muted-foreground">
-        Cargando cliente...
-      </p>
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
     );
   }
 
@@ -497,7 +498,7 @@ const ClientDetailPage = () => {
                       <div
                         key={inv.id}
                         className="flex items-center justify-between border p-3 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                        onClick={() => navigate(`/invoices/${inv.id}`)}
+                        onClick={() => navigate(`/invoices/${inv.id}`, { state: { fromClient: id } })}
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
