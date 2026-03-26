@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import {
@@ -13,6 +13,7 @@ import {
   CheckCircle,
   FileText,
   Loader2,
+  Camera,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,6 +44,7 @@ const DashboardPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [dayOffset, setDayOffset] = useState(0);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const { data: clients } = useQuery({
     queryKey: ["clients"],
@@ -81,12 +83,47 @@ const DashboardPage = () => {
     onError: () => toast.error("Error actualizando el estado de la tarea"),
   });
 
+  const photoMutation = useMutation({
+    mutationFn: ({ id, images }: { id: string; images: string[] }) =>
+      updateTask(id, { images }),
+    onSuccess: () => {
+      toast.success("Fotos actualizadas");
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+    onError: () => toast.error("Error subiendo fotos"),
+  });
+
   const handleEstado = (id: string, status: Task["status"]) => {
     const next = status === "pending" ? "in_progress" : "completed";
     updateMutation.mutate({ id, status: next });
     toast.success(
       next === "in_progress" ? "Tarea iniciada" : "Tarea finalizada",
     );
+  };
+
+  const handlePhotoClick = (taskId: string) => {
+    fileInputRefs.current[taskId]?.click();
+  };
+
+  const handleFileChange = (taskId: string, files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    // Convert files to base64 strings for demo; in production use upload endpoint
+    const promises = Array.from(files).map(
+      (file) =>
+        new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        }),
+    );
+    Promise.all(promises).then((base64Images) => {
+      const task = tareasDelDia.find((t) => t.id === taskId);
+      const existingImages = task?.images || [];
+      photoMutation.mutate({
+        id: taskId,
+        images: [...existingImages, ...base64Images],
+      });
+    });
   };
 
   return (
@@ -191,7 +228,8 @@ const DashboardPage = () => {
                 tareasDelDia.map((task) => (
                   <div
                     key={task.id}
-                    className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4 border rounded-lg p-3 sm:p-4 hover:bg-muted/50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4 border rounded-lg p-3 sm:p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/clients/${task.clientId}`)}
                   >
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                       <Clock className="h-4 w-4 text-primary" />
@@ -222,26 +260,56 @@ const DashboardPage = () => {
                           {task.address}
                         </span>
                       </div>
+                      {task.images && task.images.length > 0 && (
+                        <p className="text-xs text-primary">{task.images.length} foto(s) adjuntas</p>
+                      )}
                     </div>
 
-                    {task.status !== "completed" && (
+                    <div className="flex items-center gap-1 shrink-0 self-start">
+                      {/* Photo button */}
                       <Button
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0 self-start"
-                        onClick={() => handleEstado(task.id, task.status)}
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="Añadir fotos"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePhotoClick(task.id);
+                        }}
                       >
-                        {task.status === "pending" ? (
-                          <>
-                            <Play className="mr-1 h-3 w-3" /> Iniciar
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="mr-1 h-3 w-3" /> Finalizar
-                          </>
-                        )}
+                        <Camera className="h-4 w-4 text-muted-foreground" />
                       </Button>
-                    )}
+                      <input
+                        ref={(el) => { fileInputRefs.current[task.id] = el; }}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => handleFileChange(task.id, e.target.files)}
+                      />
+
+                      {task.status !== "completed" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEstado(task.id, task.status);
+                          }}
+                        >
+                          {task.status === "pending" ? (
+                            <>
+                              <Play className="mr-1 h-3 w-3" /> Iniciar
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="mr-1 h-3 w-3" /> Finalizar
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))
               )}

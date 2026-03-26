@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
+import { formatCurrency } from "@/lib/validators";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ChevronLeft, Pencil, Trash2, FileText, Mail, Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -323,11 +324,11 @@ const InvoiceDetailPage = () => {
                     <td className="py-2">{line.description}</td>
                     <td className="py-2 text-right">{line.quantity}</td>
                     <td className="py-2 text-right">
-                      {line.unitPrice.toFixed(2)} €
+                      {formatCurrency(line.unitPrice)}
                     </td>
                     <td className="py-2 text-right">{line.taxRate}%</td>
                     <td className="py-2 text-right font-medium">
-                      {(line.quantity * line.unitPrice).toFixed(2)} €
+                      {formatCurrency(line.quantity * line.unitPrice)}
                     </td>
                   </tr>
                 ))}
@@ -339,17 +340,17 @@ const InvoiceDetailPage = () => {
             <p className="text-sm">
               Subtotal:{" "}
               <span className="font-medium">
-                {invoice.subtotal?.toFixed(2)} €
+                {formatCurrency(invoice.subtotal ?? 0)}
               </span>
             </p>
             <p className="text-sm">
               IVA:{" "}
               <span className="font-medium">
-                {invoice.taxTotal?.toFixed(2)} €
+                {formatCurrency(invoice.taxTotal ?? 0)}
               </span>
             </p>
             <p className="text-lg font-semibold">
-              Total: {invoice.total?.toFixed(2)} €
+              Total: {formatCurrency(invoice.total ?? 0)}
             </p>
           </div>
         </CardContent>

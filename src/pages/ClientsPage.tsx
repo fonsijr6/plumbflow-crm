@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Phone, Mail, ChevronRight, Plus, Loader2 } from "lucide-react";
+import { Search, Phone, Mail, ChevronRight, Plus, Loader2, Home } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getClients, createClient } from "@/api/ClientApi";
 import { Client } from "@/data/mockData";
@@ -19,6 +19,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { validateClientForm } from "@/lib/validators";
 
 const emptyClient = (): Omit<Client, "id" | "createdAt"> => ({
   name: "",
@@ -35,6 +36,7 @@ const ClientsPage = () => {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<Omit<Client, "id" | "createdAt">>(emptyClient());
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients"],
@@ -48,6 +50,7 @@ const ClientsPage = () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       setDialogOpen(false);
       setForm(emptyClient());
+      setFieldErrors({});
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || "Error creando cliente");
@@ -55,10 +58,15 @@ const ClientsPage = () => {
   });
 
   const handleSave = () => {
-    if (!form.name.trim()) {
-      toast.error("El nombre es obligatorio");
+    const errors = validateClientForm(form);
+    if (errors.length) {
+      const map: Record<string, string> = {};
+      errors.forEach((e) => (map[e.field] = e.message));
+      setFieldErrors(map);
+      toast.error(errors[0].message);
       return;
     }
+    setFieldErrors({});
     createMutation.mutate(form);
   };
 
@@ -82,6 +90,13 @@ const ClientsPage = () => {
     <div className="flex h-full flex-col">
       {/* STICKY HEADER */}
       <div className="shrink-0 space-y-4 pb-4">
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <Home className="h-4 w-4" /> Volver a inicio
+        </button>
+
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
@@ -155,7 +170,9 @@ const ClientsPage = () => {
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className={fieldErrors.name ? "border-destructive" : ""}
               />
+              {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -164,14 +181,19 @@ const ClientsPage = () => {
                 <Input
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  className={fieldErrors.phone ? "border-destructive" : ""}
                 />
+                {fieldErrors.phone && <p className="text-xs text-destructive">{fieldErrors.phone}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label>Email</Label>
                 <Input
+                  type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className={fieldErrors.email ? "border-destructive" : ""}
                 />
+                {fieldErrors.email && <p className="text-xs text-destructive">{fieldErrors.email}</p>}
               </div>
             </div>
 

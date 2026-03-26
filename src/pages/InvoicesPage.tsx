@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Search, Plus, FileText, ChevronRight, Loader2 } from "lucide-react";
+import { Search, Plus, FileText, ChevronRight, Loader2, Home } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { getInvoices, createInvoice } from "@/api/InvoiceApi";
 import { getClients } from "@/api/ClientApi";
 import { Invoice, InvoiceLine, Client } from "@/data/mockData";
 import { useAuth } from "@/contexts/AuthContext";
+import { validateInvoiceForm, formatCurrency } from "@/lib/validators";
 
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -276,9 +277,11 @@ const InvoicesPage = () => {
   };
 
   const handleSave = () => {
-    if (!form.clientId) return toast.error("Selecciona un cliente");
-    if (!form.lines.some((l) => l.description.trim()))
-      return toast.error("Añade al menos un concepto");
+    const errors = validateInvoiceForm(form);
+    if (errors.length) {
+      toast.error(errors[0].message);
+      return;
+    }
 
     const totals = calcTotals(form.lines);
     const invoiceNumber = `FAC-${Date.now().toString().slice(-6)}`;
@@ -300,6 +303,12 @@ const InvoicesPage = () => {
 
   return (
     <div className="flex h-full flex-col">
+      <button
+        onClick={() => navigate("/dashboard")}
+        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4"
+      >
+        <Home className="h-4 w-4" /> Volver a inicio
+      </button>
       {/* HEADER */}
       <div className="shrink-0 space-y-4 pb-4">
         <div className="flex items-center justify-between">
@@ -401,7 +410,7 @@ const InvoicesPage = () => {
                 <div className="flex items-center gap-3">
                   <div className="text-right">
                     <p className="text-sm font-semibold">
-                      {inv.total.toFixed(2)} €
+                      {formatCurrency(inv.total)}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(inv.date).toLocaleDateString("es-ES")}
@@ -538,9 +547,10 @@ const InvoicesPage = () => {
                       {idx === 0 && <Label className="text-xs">Cantidad</Label>}
                       <Input
                         type="number"
+                        min="0"
                         value={line.quantity}
                         onChange={(e) =>
-                          updateLine(idx, "quantity", Number(e.target.value))
+                          updateLine(idx, "quantity", Math.max(0, Number(e.target.value)))
                         }
                       />
                     </div>
@@ -550,9 +560,10 @@ const InvoicesPage = () => {
                       <Input
                         type="number"
                         step="0.01"
+                        min="0"
                         value={line.unitPrice}
                         onChange={(e) =>
-                          updateLine(idx, "unitPrice", Number(e.target.value))
+                          updateLine(idx, "unitPrice", Math.max(0, Number(e.target.value)))
                         }
                       />
                     </div>
@@ -561,9 +572,10 @@ const InvoicesPage = () => {
                       {idx === 0 && <Label className="text-xs">IVA %</Label>}
                       <Input
                         type="number"
+                        min="0"
                         value={line.taxRate}
                         onChange={(e) =>
-                          updateLine(idx, "taxRate", Number(e.target.value))
+                          updateLine(idx, "taxRate", Math.max(0, Number(e.target.value)))
                         }
                       />
                     </div>

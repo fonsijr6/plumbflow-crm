@@ -28,6 +28,7 @@ export interface Task {
   date: string;
   time: string;
   status: "pending" | "in_progress" | "completed";
+  images?: string[];
 }
 
 export interface InvoiceLine {

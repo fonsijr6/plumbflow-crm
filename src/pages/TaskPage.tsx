@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -7,15 +8,36 @@ import {
   Play,
   CheckCircle,
   Loader2,
+  Plus,
+  Home,
+  Camera,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getTasks, updateTask } from "@/api/TaskApi";
-import { Task } from "@/data/mockData";
+import { getTasks, createTask, updateTask } from "@/api/TaskApi";
+import { getClients } from "@/api/ClientApi";
+import { Task, Client } from "@/data/mockData";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
+import { validateTaskForm } from "@/lib/validators";
 
 const statusColor: Record<string, string> = {
   pending: "bg-warning/15 text-warning-foreground border-warning/30",
@@ -30,8 +52,12 @@ const statusLabel: Record<string, string> = {
 };
 
 const TasksPage = () => {
+  const navigate = useNavigate();
   const [dayOffset, setDayOffset] = useState(0);
   const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [taskForm, setTaskForm] = useState<Partial<Task>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const selectedDate = useMemo(() => {
     const d = new Date();
@@ -42,8 +68,13 @@ const TasksPage = () => {
   const dateStr = selectedDate.toISOString().split("T")[0];
 
   const { data: tasks, isLoading } = useQuery({
-    queryKey: ["tasks", dateStr],
+    queryKey: ["tasks"],
     queryFn: () => getTasks(),
+  });
+
+  const { data: clients } = useQuery({
+    queryKey: ["clients"],
+    queryFn: getClients,
   });
 
   const tasksOfDay = tasks?.filter((t: Task) => t.date === dateStr) ?? [];
@@ -55,6 +86,17 @@ const TasksPage = () => {
     onError: () => toast.error("Error updating task"),
   });
 
+  const createMutation = useMutation({
+    mutationFn: createTask,
+    onSuccess: () => {
+      toast.success("Tarea creada");
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      setDialogOpen(false);
+      setFieldErrors({});
+    },
+    onError: () => toast.error("Error creando tarea"),
+  });
+
   const handleStatus = (
     id: string,
     status: "pending" | "in_progress" | "completed",
@@ -64,6 +106,49 @@ const TasksPage = () => {
     toast.success(
       next === "in_progress" ? "Tarea iniciada" : "Tarea completada",
     );
+  };
+
+  const openNewTask = () => {
+    setTaskForm({
+      description: "",
+      date: dateStr,
+      time: "09:00",
+      status: "pending",
+      address: "",
+      clientId: "",
+      clientName: "",
+    });
+    setFieldErrors({});
+    setDialogOpen(true);
+  };
+
+  const selectClient = (clientId: string) => {
+    const c = clients?.find((cl: Client) => cl.id === clientId);
+    if (c) {
+      setTaskForm({
+        ...taskForm,
+        clientId: c.id,
+        clientName: c.name,
+        address: c.address,
+      });
+    }
+  };
+
+  const handleSaveTask = () => {
+    const errors = validateTaskForm(taskForm);
+    if (errors.length) {
+      const map: Record<string, string> = {};
+      errors.forEach((e) => (map[e.field] = e.message));
+      setFieldErrors(map);
+      toast.error(errors[0].message);
+      return;
+    }
+    if (!taskForm.clientId) {
+      toast.error("Selecciona un cliente");
+      return;
+    }
+    setFieldErrors({});
+    createMutation.mutate(taskForm as Partial<Task>);
   };
 
   const formatDate = (d: Date) =>
@@ -94,11 +179,23 @@ const TasksPage = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Agenda</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Planifica tu trabajo
-        </p>
+      <button
+        onClick={() => navigate("/dashboard")}
+        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <Home className="h-4 w-4" /> Volver a inicio
+      </button>
+
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Agenda</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Planifica tu trabajo
+          </p>
+        </div>
+        <Button onClick={openNewTask} size="sm">
+          <Plus className="mr-1 h-4 w-4" /> Nueva tarea
+        </Button>
       </div>
 
       {/* Week strip */}
@@ -180,7 +277,8 @@ const TasksPage = () => {
             tasksOfDay.map((task) => (
               <Card
                 key={task.id}
-                className="border shadow-sm transition-all hover:shadow-md"
+                className="border shadow-sm transition-all hover:shadow-md cursor-pointer"
+                onClick={() => navigate(`/clients/${task.clientId}`)}
               >
                 <CardContent className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4 p-3 sm:p-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-semibold text-sm">
@@ -212,31 +310,118 @@ const TasksPage = () => {
                     </div>
                   </div>
 
-                  {task.status !== "completed" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0 self-start"
-                      onClick={() => handleStatus(task.id, task.status)}
-                      disabled={updateMutation.isPending}
-                    >
-                      {task.status === "pending" ? (
-                        <>
-                          <Play className="mr-1 h-3 w-3" /> Empezar
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="mr-1 h-3 w-3" /> Completar
-                        </>
-                      )}
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-1 shrink-0 self-start">
+                    {task.status !== "completed" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStatus(task.id, task.status);
+                        }}
+                        disabled={updateMutation.isPending}
+                      >
+                        {task.status === "pending" ? (
+                          <>
+                            <Play className="mr-1 h-3 w-3" /> Empezar
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="mr-1 h-3 w-3" /> Completar
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))
           )}
         </motion.div>
       </AnimatePresence>
+
+      {/* DIALOG - CREATE NEW TASK */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nueva tarea</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Cliente *</Label>
+              <Select value={taskForm.clientId || ""} onValueChange={selectClient}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients?.map((c: Client) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Descripción *</Label>
+              <Input
+                value={taskForm.description || ""}
+                onChange={(e) =>
+                  setTaskForm({ ...taskForm, description: e.target.value })
+                }
+                className={fieldErrors.description ? "border-destructive" : ""}
+              />
+              {fieldErrors.description && <p className="text-xs text-destructive">{fieldErrors.description}</p>}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Fecha *</Label>
+                <Input
+                  type="date"
+                  value={taskForm.date || ""}
+                  onChange={(e) =>
+                    setTaskForm({ ...taskForm, date: e.target.value })
+                  }
+                  className={fieldErrors.date ? "border-destructive" : ""}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Hora *</Label>
+                <Input
+                  type="time"
+                  value={taskForm.time || ""}
+                  onChange={(e) =>
+                    setTaskForm({ ...taskForm, time: e.target.value })
+                  }
+                  className={fieldErrors.time ? "border-destructive" : ""}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Dirección</Label>
+              <Input
+                value={taskForm.address || ""}
+                onChange={(e) =>
+                  setTaskForm({ ...taskForm, address: e.target.value })
+                }
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveTask} disabled={createMutation.isPending}>
+              {createMutation.isPending ? "Guardando..." : "Crear tarea"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

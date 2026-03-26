@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { StockItem } from "@/data/mockData";
-import { Search, AlertTriangle, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Search, AlertTriangle, Plus, Pencil, Trash2, Loader2, Home } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
+import { validateStockForm, formatNumber, formatCurrency } from "@/lib/validators";
 
 const emptyStock = (): Omit<StockItem, "id"> => ({
   name: "",
@@ -40,12 +42,14 @@ const emptyStock = (): Omit<StockItem, "id"> => ({
 });
 
 const StockPage = () => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<StockItem | null>(null);
   const [form, setForm] = useState<Omit<StockItem, "id">>(emptyStock());
   const [isNewCategory, setIsNewCategory] = useState(false);
   const [isNewUnit, setIsNewUnit] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const queryClient = useQueryClient();
 
   const { data: stock, isLoading } = useQuery({
@@ -59,6 +63,7 @@ const StockPage = () => {
       toast.success("Material añadido");
       queryClient.invalidateQueries({ queryKey: ["stock"] });
       setDialogOpen(false);
+      setFieldErrors({});
     },
     onError: () => toast.error("Error al crear el material"),
   });
@@ -70,6 +75,7 @@ const StockPage = () => {
       toast.success("Material actualizado");
       queryClient.invalidateQueries({ queryKey: ["stock"] });
       setDialogOpen(false);
+      setFieldErrors({});
     },
     onError: () => toast.error("Error al actualizar el material"),
   });
@@ -98,6 +104,7 @@ const StockPage = () => {
     setForm(emptyStock());
     setIsNewCategory(false);
     setIsNewUnit(false);
+    setFieldErrors({});
     setDialogOpen(true);
   };
 
@@ -107,13 +114,26 @@ const StockPage = () => {
     setForm(rest);
     setIsNewCategory(!allCategories.includes(item.category));
     setIsNewUnit(!allUnits.includes(item.unit));
+    setFieldErrors({});
     setDialogOpen(true);
   };
 
+  const handleNumericChange = (field: "quantity" | "unitPrice" | "minStock", value: string) => {
+    const num = Number(value);
+    if (num < 0) return; // prevent negatives
+    setForm({ ...form, [field]: num });
+  };
+
   const handleSave = () => {
-    if (!form.name.trim()) return toast.error("Nombre requerido");
-    if (!form.category.trim()) return toast.error("Categoría requerida");
-    if (!form.unit.trim()) return toast.error("Unidad requerida");
+    const errors = validateStockForm(form);
+    if (errors.length) {
+      const map: Record<string, string> = {};
+      errors.forEach((e) => (map[e.field] = e.message));
+      setFieldErrors(map);
+      toast.error(errors[0].message);
+      return;
+    }
+    setFieldErrors({});
 
     if (editing) {
       updateMutation.mutate({ id: editing.id, payload: form });
@@ -134,6 +154,13 @@ const StockPage = () => {
     <div className="flex h-full flex-col">
       {/* STICKY HEADER */}
       <div className="shrink-0 space-y-4 pb-4">
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <Home className="h-4 w-4" /> Volver a inicio
+        </button>
+
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Stock</h1>
@@ -186,13 +213,13 @@ const StockPage = () => {
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            {item.unitPrice.toFixed(2)} € / {item.unit}
+                            {formatCurrency(item.unitPrice)} / {item.unit}
                           </p>
                         </div>
 
                         <div className="flex items-center gap-3 shrink-0">
                           <div className="text-right">
-                            <p className="text-lg font-semibold">{item.quantity}</p>
+                            <p className="text-lg font-semibold">{formatNumber(item.quantity)}</p>
                             <p className="text-xs text-muted-foreground">{item.unit}</p>
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -229,7 +256,12 @@ const StockPage = () => {
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Nombre *</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className={fieldErrors.name ? "border-destructive" : ""}
+              />
+              {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -263,6 +295,7 @@ const StockPage = () => {
                     onChange={(e) => setForm({ ...form, category: e.target.value })}
                   />
                 )}
+                {fieldErrors.category && <p className="text-xs text-destructive">{fieldErrors.category}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -295,6 +328,7 @@ const StockPage = () => {
                     onChange={(e) => setForm({ ...form, unit: e.target.value })}
                   />
                 )}
+                {fieldErrors.unit && <p className="text-xs text-destructive">{fieldErrors.unit}</p>}
               </div>
             </div>
 
@@ -303,26 +337,35 @@ const StockPage = () => {
                 <Label>Cantidad</Label>
                 <Input
                   type="number"
+                  min="0"
                   value={form.quantity}
-                  onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
+                  onChange={(e) => handleNumericChange("quantity", e.target.value)}
+                  className={fieldErrors.quantity ? "border-destructive" : ""}
                 />
+                {fieldErrors.quantity && <p className="text-xs text-destructive">{fieldErrors.quantity}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label>Precio (€)</Label>
                 <Input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={form.unitPrice}
-                  onChange={(e) => setForm({ ...form, unitPrice: Number(e.target.value) })}
+                  onChange={(e) => handleNumericChange("unitPrice", e.target.value)}
+                  className={fieldErrors.unitPrice ? "border-destructive" : ""}
                 />
+                {fieldErrors.unitPrice && <p className="text-xs text-destructive">{fieldErrors.unitPrice}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label>Stock mínimo</Label>
                 <Input
                   type="number"
+                  min="0"
                   value={form.minStock}
-                  onChange={(e) => setForm({ ...form, minStock: Number(e.target.value) })}
+                  onChange={(e) => handleNumericChange("minStock", e.target.value)}
+                  className={fieldErrors.minStock ? "border-destructive" : ""}
                 />
+                {fieldErrors.minStock && <p className="text-xs text-destructive">{fieldErrors.minStock}</p>}
               </div>
             </div>
           </div>
