@@ -81,7 +81,11 @@ const LoginPage = () => {
         className="absolute top-5 right-5 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground transition-colors"
         aria-label="Cambiar tema"
       >
-        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        {theme === "dark" ? (
+          <Sun className="h-4 w-4" />
+        ) : (
+          <Moon className="h-4 w-4" />
+        )}
       </button>
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -94,7 +98,7 @@ const LoginPage = () => {
             <Wrench className="h-6 w-6 text-primary-foreground" />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            FontaneroCRM
+            Plumiks CRM Agency
           </h1>
           <p className="text-sm text-muted-foreground">
             {isRegister

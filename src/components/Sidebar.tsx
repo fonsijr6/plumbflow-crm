@@ -40,7 +40,7 @@ const Sidebar = () => {
             <Wrench className="h-4 w-4 text-sidebar-primary-foreground" />
           </div>
           <span className="text-sm font-semibold text-sidebar-primary-foreground tracking-tight">
-            Plumiks CRM
+            Plumiks CRM Agency
           </span>
         </div>
         <button
