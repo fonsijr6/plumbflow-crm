@@ -278,7 +278,7 @@ const TasksPage = () => {
               <Card
                 key={task.id}
                 className="border shadow-sm transition-all hover:shadow-md cursor-pointer"
-                onClick={() => navigate(`/clients/${task.clientId}`)}
+                onClick={() => navigate(`/tasks/${task.id}`)}
               >
                 <CardContent className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4 p-3 sm:p-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-semibold text-sm">
@@ -350,7 +350,10 @@ const TasksPage = () => {
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Cliente *</Label>
-              <Select value={taskForm.clientId || ""} onValueChange={selectClient}>
+              <Select
+                value={taskForm.clientId || ""}
+                onValueChange={selectClient}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona cliente" />
                 </SelectTrigger>
@@ -373,7 +376,11 @@ const TasksPage = () => {
                 }
                 className={fieldErrors.description ? "border-destructive" : ""}
               />
-              {fieldErrors.description && <p className="text-xs text-destructive">{fieldErrors.description}</p>}
+              {fieldErrors.description && (
+                <p className="text-xs text-destructive">
+                  {fieldErrors.description}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -416,7 +423,10 @@ const TasksPage = () => {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSaveTask} disabled={createMutation.isPending}>
+            <Button
+              onClick={handleSaveTask}
+              disabled={createMutation.isPending}
+            >
               {createMutation.isPending ? "Guardando..." : "Crear tarea"}
             </Button>
           </DialogFooter>

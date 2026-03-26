@@ -141,14 +141,24 @@ const DashboardPage = () => {
       {/* STATS */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         {[
-          { label: "Clientes", value: clients?.length ?? 0, icon: Users, to: "/clients" },
+          {
+            label: "Clientes",
+            value: clients?.length ?? 0,
+            icon: Users,
+            to: "/clients",
+          },
           {
             label: "Stock",
             value: stock?.reduce((a, i) => a + i.quantity, 0) ?? 0,
             icon: Package,
             to: "/stock",
           },
-          { label: "Facturas", value: invoices?.length ?? 0, icon: FileText, to: "/invoices" },
+          {
+            label: "Facturas",
+            value: invoices?.length ?? 0,
+            icon: FileText,
+            to: "/invoices",
+          },
           {
             label: "Avisos para hoy",
             value:
@@ -229,7 +239,7 @@ const DashboardPage = () => {
                   <div
                     key={task.id}
                     className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4 border rounded-lg p-3 sm:p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/clients/${task.clientId}`)}
+                    onClick={() => navigate(`/tasks/${task.id}`)}
                   >
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                       <Clock className="h-4 w-4 text-primary" />
@@ -261,7 +271,9 @@ const DashboardPage = () => {
                         </span>
                       </div>
                       {task.images && task.images.length > 0 && (
-                        <p className="text-xs text-primary">{task.images.length} foto(s) adjuntas</p>
+                        <p className="text-xs text-primary">
+                          {task.images.length} foto(s) adjuntas
+                        </p>
                       )}
                     </div>
 
@@ -280,12 +292,16 @@ const DashboardPage = () => {
                         <Camera className="h-4 w-4 text-muted-foreground" />
                       </Button>
                       <input
-                        ref={(el) => { fileInputRefs.current[task.id] = el; }}
+                        ref={(el) => {
+                          fileInputRefs.current[task.id] = el;
+                        }}
                         type="file"
                         accept="image/*"
                         multiple
                         className="hidden"
-                        onChange={(e) => handleFileChange(task.id, e.target.files)}
+                        onChange={(e) =>
+                          handleFileChange(task.id, e.target.files)
+                        }
                       />
 
                       {task.status !== "completed" && (
