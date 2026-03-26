@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, Pencil, Trash2, FileText, Mail } from "lucide-react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { ChevronLeft, Pencil, Trash2, FileText, Mail, Loader2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getInvoice,
@@ -52,7 +52,9 @@ const statusLabel: Record<string, string> = {
 const InvoiceDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
+  const fromClient = location.state?.fromClient as string | undefined;
   const [editOpen, setEditOpen] = useState(false);
   const [editStatus, setEditStatus] = useState<Invoice["status"]>("draft");
 
@@ -162,9 +164,9 @@ const InvoiceDetailPage = () => {
 
   if (isLoading)
     return (
-      <p className="py-12 text-center text-muted-foreground">
-        Cargando factura...
-      </p>
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
     );
 
   if (isError || !invoice) {
@@ -185,10 +187,10 @@ const InvoiceDetailPage = () => {
   return (
     <div className="space-y-6">
       <button
-        onClick={() => navigate("/invoices")}
+        onClick={() => navigate(fromClient ? `/clients/${fromClient}` : "/invoices")}
         className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ChevronLeft className="h-4 w-4" /> Volver a facturas
+        <ChevronLeft className="h-4 w-4" /> {fromClient ? "Volver a cliente" : "Volver a facturas"}
       </button>
 
       {/* HEADER */}

@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import {
   Users,
   Package,
@@ -11,6 +12,7 @@ import {
   Play,
   CheckCircle,
   FileText,
+  Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +40,7 @@ const estadoLabel: Record<string, string> = {
 
 const DashboardPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [dayOffset, setDayOffset] = useState(0);
 
@@ -101,13 +104,14 @@ const DashboardPage = () => {
       {/* STATS */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         {[
-          { label: "Clientes", value: clients?.length ?? 0, icon: Users },
+          { label: "Clientes", value: clients?.length ?? 0, icon: Users, to: "/clients" },
           {
             label: "Stock",
             value: stock?.reduce((a, i) => a + i.quantity, 0) ?? 0,
             icon: Package,
+            to: "/stock",
           },
-          { label: "Facturas", value: invoices?.length ?? 0, icon: FileText },
+          { label: "Facturas", value: invoices?.length ?? 0, icon: FileText, to: "/invoices" },
           {
             label: "Avisos para hoy",
             value:
@@ -115,9 +119,14 @@ const DashboardPage = () => {
                 (t: Task) => t.date === new Date().toISOString().split("T")[0],
               ).length ?? 0,
             icon: CalendarDays,
+            to: "/tasks",
           },
-        ].map(({ label, value, icon: Icon }) => (
-          <Card key={label} className="border shadow-sm">
+        ].map(({ label, value, icon: Icon, to }) => (
+          <Card
+            key={label}
+            className="border shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-primary/30"
+            onClick={() => navigate(to)}
+          >
             <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
               <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-primary/10">
                 <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
