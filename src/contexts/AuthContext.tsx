@@ -47,6 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
+  const [ready, setReady] = useState(false);
   const isAuthenticated = !!token;
 
   /* ✅ LOGIN */
@@ -122,13 +123,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             issuerEmail: me.issuerEmail,
           });
         }
-      } catch (err) {
+      } catch {
         console.log("No hay sesión activa.");
+      } finally {
+        setReady(true);
       }
     };
 
     initialize();
   }, []);
+
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider
