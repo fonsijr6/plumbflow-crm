@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { motion } from "framer-motion";
-import { Wrench, Sun, Moon } from "lucide-react";
+import { Wrench, Sun, Moon, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { isValidEmail, isValidNif } from "@/lib/validators";
 
 const LoginPage = () => {
   const { login, register } = useAuth();
@@ -16,14 +17,26 @@ const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
-  // ✅ Campos nuevos del autónomo
   const [issuerAddress, setIssuerAddress] = useState("");
   const [issuerNif, setIssuerNif] = useState("");
   const [issuerEmail, setIssuerEmail] = useState("");
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const isFormValid = useMemo(() => {
+    if (!email.trim() || !password.trim()) return false;
+    if (!isValidEmail(email)) return false;
+    if (isRegister) {
+      if (!name.trim()) return false;
+      if (!issuerAddress.trim()) return false;
+      if (!issuerNif.trim() || !isValidNif(issuerNif)) return false;
+      if (password.length < 6) return false;
+      if (password !== confirmPassword) return false;
+      if (issuerEmail.trim() && !isValidEmail(issuerEmail)) return false;
+    }
+    return true;
+  }, [email, password, isRegister, name, issuerAddress, issuerNif, confirmPassword, issuerEmail]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,57 +49,43 @@ const LoginPage = () => {
 
     if (isRegister) {
       if (!name.trim()) return setError("Introduce tu nombre");
-
-      if (!issuerAddress.trim())
-        return setError("Introduce tu dirección fiscal");
-
+      if (!issuerAddress.trim()) return setError("Introduce tu dirección fiscal");
       if (!issuerNif.trim()) return setError("Introduce tu NIF/CIF");
-
-      if (password !== confirmPassword)
-        return setError("Las contraseñas no coinciden");
-
-      if (password.length < 6)
-        return setError("La contraseña debe tener al menos 6 caracteres");
+      if (!isValidNif(issuerNif)) return setError("NIF/CIF no válido");
+      if (password !== confirmPassword) return setError("Las contraseñas no coinciden");
+      if (password.length < 6) return setError("La contraseña debe tener al menos 6 caracteres");
 
       setLoading(true);
-
       const success = await register({
         name,
         email,
         password,
         issuerAddress,
         issuerNif,
-        issuerEmail: issuerEmail.trim() || email, // fallback
+        issuerEmail: issuerEmail.trim() || email,
       });
-
       setLoading(false);
-
       if (!success) setError("Error al registrarse. Intenta de nuevo.");
       return;
     }
 
-    // ✅ LOGIN
     setLoading(true);
     const success = await login(email, password);
     setLoading(false);
-
     if (!success) setError("Credenciales incorrectas");
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 relative">
-      {/* Theme toggle */}
+      {/* Theme toggle – bottom left */}
       <button
         onClick={toggleTheme}
-        className="absolute top-5 right-5 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground transition-colors"
+        className="absolute bottom-5 left-5 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground transition-colors"
         aria-label="Cambiar tema"
       >
-        {theme === "dark" ? (
-          <Sun className="h-4 w-4" />
-        ) : (
-          <Moon className="h-4 w-4" />
-        )}
+        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </button>
+
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -101,21 +100,19 @@ const LoginPage = () => {
             Plumiks CRM Agency
           </h1>
           <p className="text-sm text-muted-foreground">
-            {isRegister
-              ? "Crea tu cuenta para gestionar tu negocio"
-              : "Gestiona tu negocio"}
+            {isRegister ? "Crea tu cuenta para gestionar tu negocio" : "Gestiona tu negocio"}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* ✅ Campo nombre SOLO en registro */}
           {isRegister && (
             <div className="space-y-2">
-              <Label htmlFor="name">Nombre completo</Label>
+              <Label htmlFor="name">Nombre completo *</Label>
               <Input
                 id="name"
                 type="text"
                 placeholder="Tu nombre"
+                maxLength={150}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -123,17 +120,17 @@ const LoginPage = () => {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Email *</Label>
             <Input
               id="email"
               type="email"
               placeholder="tu@email.com"
+              maxLength={150}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
-          {/* ✅ Campos nuevos SOLO en registro */}
           {isRegister && (
             <>
               <div className="space-y-2">
@@ -142,28 +139,29 @@ const LoginPage = () => {
                   id="issuerAddress"
                   type="text"
                   placeholder="Calle, número, ciudad..."
+                  maxLength={150}
                   value={issuerAddress}
                   onChange={(e) => setIssuerAddress(e.target.value)}
                 />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="issuerNif">NIF / CIF *</Label>
                 <Input
                   id="issuerNif"
                   type="text"
                   placeholder="12345678X"
+                  maxLength={20}
                   value={issuerNif}
                   onChange={(e) => setIssuerNif(e.target.value)}
                 />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="issuerEmail">Email fiscal (opcional)</Label>
                 <Input
                   id="issuerEmail"
                   type="email"
                   placeholder="facturacion@tudominio.com"
+                  maxLength={150}
                   value={issuerEmail}
                   onChange={(e) => setIssuerEmail(e.target.value)}
                 />
@@ -172,11 +170,12 @@ const LoginPage = () => {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="password">Contraseña</Label>
+            <Label htmlFor="password">Contraseña *</Label>
             <Input
               id="password"
               type="password"
               placeholder="••••••••"
+              maxLength={50}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
@@ -184,11 +183,12 @@ const LoginPage = () => {
 
           {isRegister && (
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
+              <Label htmlFor="confirmPassword">Confirmar contraseña *</Label>
               <Input
                 id="confirmPassword"
                 type="password"
                 placeholder="••••••••"
+                maxLength={50}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
@@ -197,14 +197,12 @@ const LoginPage = () => {
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading
-              ? isRegister
-                ? "Registrando..."
-                : "Iniciando..."
-              : isRegister
-                ? "Crear cuenta"
-                : "Iniciar sesión"}
+          <Button type="submit" className="w-full" disabled={loading || !isFormValid}>
+            {loading ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{isRegister ? "Registrando..." : "Iniciando..."}</>
+            ) : (
+              isRegister ? "Crear cuenta" : "Iniciar sesión"
+            )}
           </Button>
         </form>
 
@@ -217,9 +215,7 @@ const LoginPage = () => {
             }}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            {isRegister
-              ? "¿Ya tienes cuenta? Inicia sesión"
-              : "¿No tienes cuenta? Regístrate"}
+            {isRegister ? "¿Ya tienes cuenta? Inicia sesión" : "¿No tienes cuenta? Regístrate"}
           </button>
         </div>
       </motion.div>
