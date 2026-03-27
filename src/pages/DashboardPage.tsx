@@ -2,18 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import {
-  Users,
-  Package,
-  CalendarDays,
-  Clock,
-  MapPin,
-  ChevronLeft,
-  ChevronRight,
-  Play,
-  CheckCircle,
-  FileText,
-  Loader2,
-  Camera,
+  Users, Package, CalendarDays, Clock, MapPin, ChevronLeft, ChevronRight, Play, CheckCircle, FileText, Loader2, User,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,160 +15,78 @@ import { getStock } from "@/api/StockApi";
 import { getTasks, updateTask } from "@/api/TaskApi";
 import { getInvoices } from "@/api/InvoiceApi";
 import { Task } from "@/data/mockData";
-import { uploadImageToCloudinary } from "@/utils/uploadImage";
 
 const estadoColor: Record<string, string> = {
   pending: "bg-warning/15 text-warning-foreground border-warning/30",
   in_progress: "bg-primary/10 text-primary border-primary/30",
   completed: "bg-success/15 text-success border-success/30",
 };
-
-const estadoLabel: Record<string, string> = {
-  pending: "Pendiente",
-  in_progress: "En progreso",
-  completed: "Completada",
-};
+const estadoLabel: Record<string, string> = { pending: "Pendiente", in_progress: "En progreso", completed: "Completada" };
 
 const DashboardPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [dayOffset, setDayOffset] = useState(0);
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const { data: clients } = useQuery({
-    queryKey: ["clients"],
-    queryFn: getClients,
-  });
+  const profileImage = localStorage.getItem("profile_image");
+
+  const { data: clients } = useQuery({ queryKey: ["clients"], queryFn: getClients });
   const { data: stock } = useQuery({ queryKey: ["stock"], queryFn: getStock });
-  const { data: tasks } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => getTasks(),
-  });
-  const { data: invoices } = useQuery({
-    queryKey: ["invoices"],
-    queryFn: () => getInvoices(),
-  });
+  const { data: tasks } = useQuery({ queryKey: ["tasks"], queryFn: () => getTasks() });
+  const { data: invoices } = useQuery({ queryKey: ["invoices"], queryFn: () => getInvoices() });
 
-  const selectedDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + dayOffset);
-    return d;
-  }, [dayOffset]);
-
+  const selectedDate = useMemo(() => { const d = new Date(); d.setDate(d.getDate() + dayOffset); return d; }, [dayOffset]);
   const dateStr = selectedDate.toISOString().split("T")[0];
   const tareasDelDia = tasks?.filter((t: Task) => t.date === dateStr) ?? [];
 
-  const formatDate = (date: Date) =>
-    date.toLocaleDateString("es-ES", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-    });
+  const formatDate = (date: Date) => date.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: Task["status"] }) =>
-      updateTask(id, { status }),
+    mutationFn: ({ id, status }: { id: string; status: Task["status"] }) => updateTask(id, { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
-    onError: () => toast.error("Error actualizando el estado de la tarea"),
-  });
-
-  const photoMutation = useMutation({
-    mutationFn: ({ id, images }: { id: string; images: string[] }) =>
-      updateTask(id, { images }),
-    onSuccess: () => {
-      toast.success("Fotos actualizadas");
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-    },
-    onError: () => toast.error("Error subiendo fotos"),
+    onError: () => toast.error("Error actualizando el estado del aviso"),
   });
 
   const handleEstado = (id: string, status: Task["status"]) => {
     const next = status === "pending" ? "in_progress" : "completed";
     updateMutation.mutate({ id, status: next });
-    toast.success(
-      next === "in_progress" ? "Tarea iniciada" : "Tarea finalizada",
-    );
-  };
-
-  const handlePhotoClick = (taskId: string) => {
-    fileInputRefs.current[taskId]?.click();
-  };
-
-  const handleFileChange = async (taskId: string, files: FileList | null) => {
-    if (!files || files.length === 0) return;
-
-    const task = tareasDelDia.find((t) => t.id === taskId);
-    const existingImages = task?.images || [];
-
-    const uploadPromises = Array.from(files).map((file) =>
-      uploadImageToCloudinary(file),
-    );
-
-    const urls = await Promise.all(uploadPromises);
-
-    photoMutation.mutate({
-      id: taskId,
-      images: [...existingImages, ...urls],
-    });
+    toast.success(next === "in_progress" ? "Aviso iniciado" : "Aviso finalizado");
   };
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* HEADER */}
-      <div className="text-center">
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
-          {user?.name || "Dashboard"}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Resumen de tu actividad
-        </p>
+      {/* HEADER with profile photo */}
+      <div className="flex items-center justify-between">
+        <div />
+        <div className="text-center flex-1">
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">{user?.name || "Dashboard"}</h1>
+          <p className="text-sm text-muted-foreground mt-1">Resumen de tu actividad</p>
+        </div>
+        <div
+          className="h-10 w-10 rounded-full bg-muted flex items-center justify-center overflow-hidden cursor-pointer shrink-0"
+          onClick={() => navigate("/profile")}
+        >
+          {profileImage ? (
+            <img src={profileImage} alt="Perfil" className="h-full w-full object-cover" />
+          ) : (
+            <User className="h-5 w-5 text-muted-foreground" />
+          )}
+        </div>
       </div>
 
       {/* STATS */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         {[
-          {
-            label: "Clientes",
-            value: clients?.length ?? 0,
-            icon: Users,
-            to: "/clients",
-          },
-          {
-            label: "Stock",
-            value: stock?.reduce((a, i) => a + i.quantity, 0) ?? 0,
-            icon: Package,
-            to: "/stock",
-          },
-          {
-            label: "Facturas",
-            value: invoices?.length ?? 0,
-            icon: FileText,
-            to: "/invoices",
-          },
-          {
-            label: "Avisos para hoy",
-            value:
-              tasks?.filter(
-                (t: Task) => t.date === new Date().toISOString().split("T")[0],
-              ).length ?? 0,
-            icon: CalendarDays,
-            to: "/tasks",
-          },
+          { label: "Clientes", value: clients?.length ?? 0, icon: Users, to: "/clients" },
+          { label: "Stock", value: stock?.reduce((a, i) => a + i.quantity, 0) ?? 0, icon: Package, to: "/stock" },
+          { label: "Facturas", value: invoices?.length ?? 0, icon: FileText, to: "/invoices" },
+          { label: "Avisos para hoy", value: tasks?.filter((t: Task) => t.date === new Date().toISOString().split("T")[0]).length ?? 0, icon: CalendarDays, to: "/tasks" },
         ].map(({ label, value, icon: Icon, to }) => (
-          <Card
-            key={label}
-            className="border shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-primary/30"
-            onClick={() => navigate(to)}
-          >
+          <Card key={label} className="border shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-primary/30" onClick={() => navigate(to)}>
             <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-              <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-primary/10">
-                <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-xl sm:text-2xl font-semibold">{value}</p>
-                <p className="text-xs text-muted-foreground">{label}</p>
-              </div>
+              <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-primary/10"><Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" /></div>
+              <div><p className="text-xl sm:text-2xl font-semibold">{value}</p><p className="text-xs text-muted-foreground">{label}</p></div>
             </CardContent>
           </Card>
         ))}
@@ -188,140 +95,39 @@ const DashboardPage = () => {
       {/* AGENDA */}
       <Card className="border shadow-sm">
         <CardHeader className="flex-col sm:flex-row sm:justify-between gap-3">
-          <CardTitle className="text-lg font-semibold">
-            Agenda del día
-          </CardTitle>
+          <CardTitle className="text-lg font-semibold">Agenda del día</CardTitle>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setDayOffset((p) => p - 1)}
-              className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
+            <button onClick={() => setDayOffset((p) => p - 1)} className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground"><ChevronLeft className="h-4 w-4" /></button>
             <span className="min-w-[140px] sm:min-w-[180px] text-center text-sm font-medium capitalize">
-              {dayOffset === 0
-                ? "Hoy"
-                : dayOffset === 1
-                  ? "Mañana"
-                  : dayOffset === -1
-                    ? "Ayer"
-                    : ""}
-              {" — "}
-              {formatDate(selectedDate)}
+              {dayOffset === 0 ? "Hoy" : dayOffset === 1 ? "Mañana" : dayOffset === -1 ? "Ayer" : ""}{" — "}{formatDate(selectedDate)}
             </span>
-            <button
-              onClick={() => setDayOffset((p) => p + 1)}
-              className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
+            <button onClick={() => setDayOffset((p) => p + 1)} className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground"><ChevronRight className="h-4 w-4" /></button>
           </div>
         </CardHeader>
-
         <CardContent>
           <AnimatePresence mode="wait">
-            <motion.div
-              key={dateStr}
-              initial={{ opacity: 0, x: 25 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -25 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-3"
-            >
+            <motion.div key={dateStr} initial={{ opacity: 0, x: 25 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -25 }} transition={{ duration: 0.2 }} className="space-y-3">
               {tareasDelDia.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  No hay avisos programados para este día
-                </p>
+                <p className="py-8 text-center text-sm text-muted-foreground">No hay avisos programados para este día</p>
               ) : (
                 tareasDelDia.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4 border rounded-lg p-3 sm:p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/tasks/${task.id}`)}
-                  >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                      <Clock className="h-4 w-4 text-primary" />
-                    </div>
-
+                  <div key={task.id} className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4 border rounded-lg p-3 sm:p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/tasks/${task.id}`)}>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10"><Clock className="h-4 w-4 text-primary" /></div>
                     <div className="flex-1 space-y-1 min-w-0">
-                      <div className="flex flex-wrap justify-between items-start gap-2">
-                        <p className="text-sm font-medium">
-                          {task.description}
-                        </p>
-                        <Badge
-                          variant="outline"
-                          className={estadoColor[task.status]}
-                        >
-                          {estadoLabel[task.status]}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {task.clientName}
-                      </p>
+                      <p className="text-sm font-medium">{task.description}</p>
+                      <p className="text-sm text-muted-foreground">{task.clientName}</p>
                       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {task.time}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {task.address}
-                        </span>
+                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{task.time}</span>
+                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{task.address}</span>
                       </div>
-                      {task.images && task.images.length > 0 && (
-                        <p className="text-xs text-primary">
-                          {task.images.length} foto(s) adjuntas
-                        </p>
-                      )}
+                      {task.images && task.images.length > 0 && <p className="text-xs text-primary">{task.images.length} foto(s) adjuntas</p>}
                     </div>
-
-                    <div className="flex items-center gap-1 shrink-0 self-start">
-                      {/* Photo button */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Añadir fotos"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePhotoClick(task.id);
-                        }}
-                      >
-                        <Camera className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                      <input
-                        ref={(el) => {
-                          fileInputRefs.current[task.id] = el;
-                        }}
-                        type="file"
-                        accept="image/*"
-                        capture="environment" // ✅ activa cámara en móvil
-                        multiple
-                        className="hidden"
-                        onChange={(e) =>
-                          handleFileChange(task.id, e.target.files)
-                        }
-                      />
-
+                    <div className="flex flex-col items-end gap-2 shrink-0 self-start">
+                      <Badge variant="outline" className={estadoColor[task.status]}>{estadoLabel[task.status]}</Badge>
                       {task.status !== "completed" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="shrink-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEstado(task.id, task.status);
-                          }}
-                        >
-                          {task.status === "pending" ? (
-                            <>
-                              <Play className="mr-1 h-3 w-3" /> Iniciar
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="mr-1 h-3 w-3" /> Finalizar
-                            </>
-                          )}
+                        <Button variant="outline" size="sm" className="shrink-0" onClick={(e) => { e.stopPropagation(); handleEstado(task.id, task.status); }} disabled={updateMutation.isPending}>
+                          {task.status === "pending" ? (<><Play className="mr-1 h-3 w-3" /> Iniciar</>) : (<><CheckCircle className="mr-1 h-3 w-3" /> Finalizar</>)}
                         </Button>
                       )}
                     </div>

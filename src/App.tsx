@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 
-import { Toaster as Sonner } from "@/components/ui/sonner"; // ✅ CORRECTO SEGÚN TU ARCHIVO
-import { TooltipProvider } from "@/components/ui/tooltip"; // ✅ CORRECTO SEGÚN TU ARCHIVO
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -17,6 +17,7 @@ import ClientDetailPage from "@/pages/ClientDetailPage";
 import InvoicesPage from "@/pages/InvoicesPage";
 import InvoiceDetailPage from "@/pages/InvoiceDetailPage";
 import TaskDetailPage from "@/pages/TaskDetailPage";
+import ProfilePage from "@/pages/ProfilePage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,28 +38,13 @@ const App = () => (
   <ThemeProvider>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Sonner /> {/* ✅ ESTA ES TU ÚNICA TOASTER REAL */}
+        <Sonner />
         <AuthProvider>
           <BrowserRouter>
             <Routes>
-              <Route
-                path="/login"
-                element={
-                  <PublicRoute>
-                    <LoginPage />
-                  </PublicRoute>
-                }
-              />
-
+              <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
-              <Route
-                element={
-                  <ProtectedRoute>
-                    <DashboardLayout />
-                  </ProtectedRoute>
-                }
-              >
+              <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/clients" element={<ClientsPage />} />
                 <Route path="/clients/:id" element={<ClientDetailPage />} />
@@ -67,8 +53,8 @@ const App = () => (
                 <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
                 <Route path="/tasks" element={<TasksPage />} />
                 <Route path="/tasks/:id" element={<TaskDetailPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
               </Route>
-
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

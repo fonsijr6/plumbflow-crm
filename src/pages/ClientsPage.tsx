@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Phone, Mail, ChevronRight, Plus, Loader2, Home } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,23 +10,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { validateClientForm } from "@/lib/validators";
+import { validateClientForm, isValidEmail, isValidPhone } from "@/lib/validators";
 
 const emptyClient = (): Omit<Client, "id" | "createdAt"> => ({
-  name: "",
-  phone: "",
-  email: "",
-  address: "",
-  notes: "",
+  name: "", phone: "", email: "", address: "", notes: "",
 });
 
 const ClientsPage = () => {
@@ -57,6 +49,13 @@ const ClientsPage = () => {
     },
   });
 
+  const isFormValid = useMemo(() => {
+    if (!form.name.trim()) return false;
+    if (form.phone && !isValidPhone(form.phone)) return false;
+    if (form.email && !isValidEmail(form.email)) return false;
+    return true;
+  }, [form]);
+
   const handleSave = () => {
     const errors = validateClientForm(form);
     if (errors.length) {
@@ -80,15 +79,11 @@ const ClientsPage = () => {
 
   const filtered =
     clients?.filter((c) =>
-      [c.name, c.phone, c.email]
-        .join(" ")
-        .toLowerCase()
-        .includes(search.toLowerCase()),
+      [c.name, c.phone, c.email].join(" ").toLowerCase().includes(search.toLowerCase()),
     ) || [];
 
   return (
     <div className="flex h-full flex-col">
-      {/* STICKY HEADER */}
       <div className="shrink-0 space-y-4 pb-4">
         <button
           onClick={() => navigate("/dashboard")}
@@ -105,8 +100,7 @@ const ClientsPage = () => {
             </p>
           </div>
           <Button onClick={() => setDialogOpen(true)} size="sm">
-            <Plus className="mr-1 h-4 w-4" />
-            Nuevo cliente
+            <Plus className="mr-1 h-4 w-4" /> Nuevo cliente
           </Button>
         </div>
 
@@ -121,7 +115,6 @@ const ClientsPage = () => {
         </div>
       </div>
 
-      {/* SCROLLABLE CLIENT LIST */}
       <ScrollArea className="flex-1 -mx-1 px-1">
         <div className="space-y-2 pb-4">
           {filtered.map((c) => (
@@ -148,7 +141,6 @@ const ClientsPage = () => {
               </CardContent>
             </Card>
           ))}
-
           {filtered.length === 0 && (
             <p className="py-8 text-center text-sm text-muted-foreground">
               No se han encontrado clientes
@@ -157,28 +149,28 @@ const ClientsPage = () => {
         </div>
       </ScrollArea>
 
-      {/* DIALOG - CREATE NEW CLIENT */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Nuevo cliente</DialogTitle>
           </DialogHeader>
-
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Nombre *</Label>
               <Input
+                placeholder="Nombre del cliente"
+                maxLength={150}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className={fieldErrors.name ? "border-destructive" : ""}
               />
               {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
             </div>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Teléfono</Label>
                 <Input
+                  placeholder="600123456"
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   className={fieldErrors.phone ? "border-destructive" : ""}
@@ -189,6 +181,8 @@ const ClientsPage = () => {
                 <Label>Email</Label>
                 <Input
                   type="email"
+                  placeholder="email@ejemplo.com"
+                  maxLength={150}
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   className={fieldErrors.email ? "border-destructive" : ""}
@@ -196,31 +190,33 @@ const ClientsPage = () => {
                 {fieldErrors.email && <p className="text-xs text-destructive">{fieldErrors.email}</p>}
               </div>
             </div>
-
             <div className="space-y-1.5">
               <Label>Dirección</Label>
               <Input
+                placeholder="Calle, número, ciudad"
+                maxLength={150}
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
               />
             </div>
-
             <div className="space-y-1.5">
               <Label>Notas</Label>
               <Textarea
+                placeholder="Notas adicionales..."
+                maxLength={500}
                 value={form.notes}
                 rows={2}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
               />
+              <p className="text-xs text-muted-foreground text-right">{form.notes.length}/500</p>
             </div>
           </div>
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave} disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Guardando..." : "Guardar"}
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={createMutation.isPending || !isFormValid}>
+              {createMutation.isPending ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
+              ) : "Guardar"}
             </Button>
           </DialogFooter>
         </DialogContent>
