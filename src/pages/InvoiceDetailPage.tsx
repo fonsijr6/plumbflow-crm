@@ -1,16 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
-import { formatCurrency } from "@/lib/validators";
+import { useState, useMemo } from "react";
+import { formatCurrency, isValidNif } from "@/lib/validators";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { ChevronLeft, Pencil, Trash2, FileText, Mail, Loader2 } from "lucide-react";
+import { ChevronLeft, Pencil, Trash2, FileText, Mail, Loader2, Plus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  getInvoice,
-  updateInvoice,
-  deleteInvoice,
-  sendInvoice,
-} from "@/api/InvoiceApi";
-import { Invoice } from "@/data/mockData";
+import { getInvoice, updateInvoice, deleteInvoice, sendInvoice } from "@/api/InvoiceApi";
+import { Invoice, InvoiceLine } from "@/data/mockData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,23 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import api from "@/api/AxiosClient";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 const statusColor: Record<string, string> = {
   draft: "bg-muted text-muted-foreground border-border",
@@ -42,13 +25,9 @@ const statusColor: Record<string, string> = {
   paid: "bg-success/15 text-success border-success/30",
   overdue: "bg-destructive/10 text-destructive border-destructive/30",
 };
+const statusLabel: Record<string, string> = { draft: "Borrador", sent: "Enviada", paid: "Pagada", overdue: "Vencida" };
 
-const statusLabel: Record<string, string> = {
-  draft: "Borrador",
-  sent: "Enviada",
-  paid: "Pagada",
-  overdue: "Vencida",
-};
+const emptyLine = (): InvoiceLine => ({ description: "", quantity: 1, unitPrice: 0, taxRate: 21 });
 
 const InvoiceDetailPage = () => {
   const { id } = useParams();
@@ -56,17 +35,14 @@ const InvoiceDetailPage = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
   const fromClient = location.state?.fromClient as string | undefined;
-  const [editOpen, setEditOpen] = useState(false);
-  const [editStatus, setEditStatus] = useState<Invoice["status"]>("draft");
 
-  const {
-    data: invoice,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ["invoice", id],
-    queryFn: () => getInvoice(id!),
-  });
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [editStatus, setEditStatus] = useState<Invoice["status"]>("draft");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState<any>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const { data: invoice, isLoading, isError } = useQuery({ queryKey: ["invoice", id], queryFn: () => getInvoice(id!) });
 
   const updateMutation = useMutation({
     mutationFn: (payload: Partial<Invoice>) => updateInvoice(id!, payload),
@@ -74,6 +50,7 @@ const InvoiceDetailPage = () => {
       toast.success("Factura actualizada");
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      setStatusDialogOpen(false);
       setEditOpen(false);
     },
     onError: () => toast.error("Error actualizando factura"),
@@ -81,329 +58,263 @@ const InvoiceDetailPage = () => {
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteInvoice(id!),
-    onSuccess: () => {
-      toast.success("Factura eliminada");
-      navigate("/invoices");
-    },
+    onSuccess: () => { toast.success("Factura eliminada"); navigate("/invoices"); },
     onError: () => toast.error("Error eliminando factura"),
   });
 
-  const downloadPdf = (invoice: Invoice) => {
-    const doc = new jsPDF();
-
-    // ✅ TÍTULO
-    doc.setFontSize(18);
-    doc.text(`Factura ${invoice.invoiceNumber}`, 14, 20);
-
-    // ✅ DATOS EMISOR
-    doc.setFontSize(12);
-    doc.text("Emisor:", 14, 35);
-    doc.text(invoice.issuerName, 14, 42);
-    if (invoice.issuerNif) doc.text(`NIF: ${invoice.issuerNif}`, 14, 49);
-    if (invoice.issuerAddress) doc.text(invoice.issuerAddress, 14, 56);
-
-    // ✅ DATOS CLIENTE
-    doc.text("Cliente:", 14, 72);
-    doc.text(invoice.clientName, 14, 79);
-    if (invoice.clientNif) doc.text(`NIF: ${invoice.clientNif}`, 14, 86);
-    if (invoice.clientAddress) doc.text(invoice.clientAddress, 14, 93);
-
-    // ✅ FECHAS
-    doc.text(
-      `Fecha emisión: ${new Date(invoice.date).toLocaleDateString("es-ES")}`,
-      14,
-      110,
-    );
-    if (invoice.dueDate) {
-      doc.text(
-        `Vencimiento: ${new Date(invoice.dueDate).toLocaleDateString("es-ES")}`,
-        14,
-        117,
-      );
-    }
-
-    // ✅ TABLA DE LÍNEAS
-    autoTable(doc, {
-      startY: 130,
-      head: [["Descripción", "Cant.", "Precio", "IVA", "Importe"]],
-      body: invoice.lines.map((l) => [
-        l.description,
-        l.quantity,
-        `${l.unitPrice.toFixed(2)} €`,
-        `${l.taxRate}%`,
-        `${(l.unitPrice * l.quantity).toFixed(2)} €`,
-      ]),
-    });
-
-    // ✅ TOTALES
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    doc.setFontSize(12);
-    doc.text(`Subtotal: ${invoice.subtotal.toFixed(2)} €`, 150, finalY);
-    doc.text(`IVA: ${invoice.taxTotal.toFixed(2)} €`, 150, finalY + 7);
-    doc.text(`Total: ${invoice.total.toFixed(2)} €`, 150, finalY + 14);
-
-    // ✅ NOTAS
-    if (invoice.notes) {
-      doc.setFontSize(11);
-      doc.text("Notas:", 14, finalY + 30);
-      doc.text(invoice.notes, 14, finalY + 37);
-    }
-
-    // ✅ DESCARGA
-    doc.save(`Factura-${invoice.invoiceNumber}.pdf`);
-  };
-
   const sendEmailMutation = useMutation({
     mutationFn: () => sendInvoice(id!),
-    onSuccess: () => {
-      toast.success("Factura enviada por email");
-      queryClient.invalidateQueries({ queryKey: ["invoice", id] });
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
-    },
+    onSuccess: () => { toast.success("Factura enviada por email"); queryClient.invalidateQueries({ queryKey: ["invoice", id] }); queryClient.invalidateQueries({ queryKey: ["invoices"] }); },
     onError: () => toast.error("Error enviando la factura"),
   });
 
-  if (isLoading)
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
-    );
+  const openEditInvoice = () => {
+    if (!invoice) return;
+    setEditForm({
+      clientNif: invoice.clientNif || "",
+      issuerNif: invoice.issuerNif || "",
+      date: invoice.date,
+      dueDate: invoice.dueDate || "",
+      lines: invoice.lines?.map((l) => ({ ...l })) || [emptyLine()],
+      notes: invoice.notes || "",
+      status: invoice.status,
+    });
+    setEditOpen(true);
+  };
 
+  const calcTotals = (lines: InvoiceLine[]) => {
+    const subtotal = lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
+    const taxTotal = lines.reduce((s, l) => s + l.quantity * l.unitPrice * (l.taxRate / 100), 0);
+    return { subtotal, taxTotal, total: subtotal + taxTotal };
+  };
+
+  const updateEditLine = (idx: number, field: keyof InvoiceLine, value: string | number) => {
+    const updated = [...editForm.lines];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setEditForm({ ...editForm, lines: updated });
+  };
+
+  const handleNumericLine = (idx: number, field: keyof InvoiceLine, value: string, max: number) => {
+    const num = Math.max(0, Math.min(Number(value), max));
+    updateEditLine(idx, field, num);
+  };
+
+  const isEditFormValid = useMemo(() => {
+    if (!editForm) return false;
+    if (editForm.clientNif && !isValidNif(editForm.clientNif)) return false;
+    if (editForm.issuerNif && !isValidNif(editForm.issuerNif)) return false;
+    if (!editForm.lines.some((l: InvoiceLine) => l.description.trim())) return false;
+    return true;
+  }, [editForm]);
+
+  const saveEditInvoice = () => {
+    const totals = calcTotals(editForm.lines);
+    updateMutation.mutate({ ...editForm, ...totals });
+  };
+
+  const downloadPdf = (inv: Invoice) => {
+    const doc = new jsPDF();
+    doc.setFontSize(18); doc.text(`Factura ${inv.invoiceNumber}`, 14, 20);
+    doc.setFontSize(12);
+    doc.text("Emisor:", 14, 35); doc.text(inv.issuerName, 14, 42);
+    if (inv.issuerNif) doc.text(`NIF: ${inv.issuerNif}`, 14, 49);
+    if (inv.issuerAddress) doc.text(inv.issuerAddress, 14, 56);
+    doc.text("Cliente:", 14, 72); doc.text(inv.clientName, 14, 79);
+    if (inv.clientNif) doc.text(`NIF: ${inv.clientNif}`, 14, 86);
+    if (inv.clientAddress) doc.text(inv.clientAddress, 14, 93);
+    doc.text(`Fecha emisión: ${new Date(inv.date).toLocaleDateString("es-ES")}`, 14, 110);
+    if (inv.dueDate) doc.text(`Vencimiento: ${new Date(inv.dueDate).toLocaleDateString("es-ES")}`, 14, 117);
+    autoTable(doc, {
+      startY: 130,
+      head: [["Descripción", "Cant.", "Precio", "IVA", "Importe"]],
+      body: inv.lines.map((l) => [l.description, l.quantity, `${l.unitPrice.toFixed(2)} €`, `${l.taxRate}%`, `${(l.unitPrice * l.quantity).toFixed(2)} €`]),
+    });
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(12);
+    doc.text(`Subtotal: ${inv.subtotal.toFixed(2)} €`, 150, finalY);
+    doc.text(`IVA: ${inv.taxTotal.toFixed(2)} €`, 150, finalY + 7);
+    doc.text(`Total: ${inv.total.toFixed(2)} €`, 150, finalY + 14);
+    if (inv.notes) { doc.setFontSize(11); doc.text("Notas:", 14, finalY + 30); doc.text(inv.notes, 14, finalY + 37); }
+    doc.save(`Factura-${inv.invoiceNumber}.pdf`);
+  };
+
+  if (isLoading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   if (isError || !invoice) {
-    return (
-      <div className="flex flex-col items-center py-20">
-        <p className="text-muted-foreground">Factura no encontrada</p>
-        <Button
-          variant="ghost"
-          className="mt-4"
-          onClick={() => navigate("/invoices")}
-        >
-          <ChevronLeft className="mr-2 h-4 w-4" /> Volver
-        </Button>
-      </div>
-    );
+    return <div className="flex flex-col items-center py-20"><p className="text-muted-foreground">Factura no encontrada</p><Button variant="ghost" className="mt-4" onClick={() => navigate("/invoices")}><ChevronLeft className="mr-2 h-4 w-4" /> Volver</Button></div>;
   }
 
   return (
     <div className="space-y-6">
-      <button
-        onClick={() => navigate(fromClient ? `/clients/${fromClient}` : "/invoices")}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
+      <button onClick={() => navigate(fromClient ? `/clients/${fromClient}` : "/invoices")} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
         <ChevronLeft className="h-4 w-4" /> {fromClient ? "Volver a cliente" : "Volver a facturas"}
       </button>
 
-      {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-            <FileText className="h-5 w-5 text-primary" />
-          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10"><FileText className="h-5 w-5 text-primary" /></div>
           <div>
             <h1 className="text-2xl font-semibold">{invoice.invoiceNumber}</h1>
-            <p className="text-sm text-muted-foreground">
-              {invoice.clientName}
-            </p>
+            <p className="text-sm text-muted-foreground">{invoice.clientName}</p>
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Badge
-            variant="outline"
-            className={`${statusColor[invoice.status]} text-sm px-3 py-1`}
-          >
-            {statusLabel[invoice.status]}
-          </Badge>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setEditStatus(invoice.status);
-              setEditOpen(true);
-            }}
-          >
-            <Pencil className="mr-1 h-3.5 w-3.5" /> Estado
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className={`${statusColor[invoice.status]} text-sm px-3 py-1`}>{statusLabel[invoice.status]}</Badge>
+          <Button variant="outline" size="sm" onClick={() => { setEditStatus(invoice.status); setStatusDialogOpen(true); }}><Pencil className="mr-1 h-3.5 w-3.5" /> Estado</Button>
+          <Button variant="outline" size="sm" onClick={openEditInvoice}><Pencil className="mr-1 h-3.5 w-3.5" /> Editar</Button>
+          <Button variant="outline" size="sm" onClick={() => sendEmailMutation.mutate()} disabled={sendEmailMutation.isPending}>
+            {sendEmailMutation.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Mail className="mr-1 h-3.5 w-3.5" />} Enviar email
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => sendEmailMutation.mutate()}
-          >
-            <Mail className="mr-1 h-3.5 w-3.5" /> Enviar email
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => downloadPdf(invoice)}
-          >
-            <FileText className="mr-1 h-3.5 w-3.5" /> PDF
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive"
-            onClick={() => deleteMutation.mutate()}
-          >
-            <Trash2 className="mr-1 h-3.5 w-3.5" /> Eliminar
-          </Button>
+          <Button variant="outline" size="sm" onClick={() => downloadPdf(invoice)}><FileText className="mr-1 h-3.5 w-3.5" /> PDF</Button>
+          <Button variant="outline" size="sm" className="text-destructive" onClick={() => setDeleteOpen(true)}><Trash2 className="mr-1 h-3.5 w-3.5" /> Eliminar</Button>
         </div>
       </div>
 
-      {/* DATOS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="border shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">Emisor</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-base">Emisor</CardTitle></CardHeader>
           <CardContent className="space-y-1 text-sm">
             <p className="font-medium">{invoice.issuerName}</p>
-            <p className="text-muted-foreground">
-              NIF: {invoice.issuerNif || "—"}
-            </p>
-            <p className="text-muted-foreground">
-              {invoice.issuerAddress || "—"}
-            </p>
+            <p className="text-muted-foreground">NIF: {invoice.issuerNif || "—"}</p>
+            <p className="text-muted-foreground">{invoice.issuerAddress || "—"}</p>
           </CardContent>
         </Card>
-
         <Card className="border shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">Cliente</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-base">Cliente</CardTitle></CardHeader>
           <CardContent className="space-y-1 text-sm">
             <p className="font-medium">{invoice.clientName}</p>
-            <p className="text-muted-foreground">
-              NIF: {invoice.clientNif || "—"}
-            </p>
-            <p className="text-muted-foreground">
-              {invoice.clientAddress || "—"}
-            </p>
+            <p className="text-muted-foreground">NIF: {invoice.clientNif || "—"}</p>
+            <p className="text-muted-foreground">{invoice.clientAddress || "—"}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* FECHAS */}
       <div className="flex gap-6 text-sm">
-        <div>
-          <span className="text-muted-foreground">Fecha emisión:</span>{" "}
-          <span className="font-medium">
-            {new Date(invoice.date).toLocaleDateString("es-ES")}
-          </span>
-        </div>
-        {invoice.dueDate && (
-          <div>
-            <span className="text-muted-foreground">Vencimiento:</span>{" "}
-            <span className="font-medium">
-              {new Date(invoice.dueDate).toLocaleDateString("es-ES")}
-            </span>
-          </div>
-        )}
+        <div><span className="text-muted-foreground">Fecha emisión:</span> <span className="font-medium">{new Date(invoice.date).toLocaleDateString("es-ES")}</span></div>
+        {invoice.dueDate && <div><span className="text-muted-foreground">Vencimiento:</span> <span className="font-medium">{new Date(invoice.dueDate).toLocaleDateString("es-ES")}</span></div>}
       </div>
 
-      {/* LÍNEAS */}
       <Card className="border shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base">Conceptos</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="text-base">Conceptos</CardTitle></CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2 font-medium">Descripción</th>
-                  <th className="pb-2 font-medium text-right">Cant.</th>
-                  <th className="pb-2 font-medium text-right">Precio</th>
-                  <th className="pb-2 font-medium text-right">IVA</th>
-                  <th className="pb-2 font-medium text-right">Importe</th>
-                </tr>
-              </thead>
+              <thead><tr className="border-b text-left text-muted-foreground">
+                <th className="pb-2 font-medium">Descripción</th><th className="pb-2 font-medium text-right">Cant.</th><th className="pb-2 font-medium text-right">Precio</th><th className="pb-2 font-medium text-right">IVA</th><th className="pb-2 font-medium text-right">Importe</th>
+              </tr></thead>
               <tbody>
                 {invoice.lines?.map((line, idx) => (
                   <tr key={idx} className="border-b last:border-0">
-                    <td className="py-2">{line.description}</td>
-                    <td className="py-2 text-right">{line.quantity}</td>
-                    <td className="py-2 text-right">
-                      {formatCurrency(line.unitPrice)}
-                    </td>
-                    <td className="py-2 text-right">{line.taxRate}%</td>
-                    <td className="py-2 text-right font-medium">
-                      {formatCurrency(line.quantity * line.unitPrice)}
-                    </td>
+                    <td className="py-2">{line.description}</td><td className="py-2 text-right">{line.quantity}</td>
+                    <td className="py-2 text-right">{formatCurrency(line.unitPrice)}</td><td className="py-2 text-right">{line.taxRate}%</td>
+                    <td className="py-2 text-right font-medium">{formatCurrency(line.quantity * line.unitPrice)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-
           <div className="mt-4 text-right space-y-1 border-t pt-3">
-            <p className="text-sm">
-              Subtotal:{" "}
-              <span className="font-medium">
-                {formatCurrency(invoice.subtotal ?? 0)}
-              </span>
-            </p>
-            <p className="text-sm">
-              IVA:{" "}
-              <span className="font-medium">
-                {formatCurrency(invoice.taxTotal ?? 0)}
-              </span>
-            </p>
-            <p className="text-lg font-semibold">
-              Total: {formatCurrency(invoice.total ?? 0)}
-            </p>
+            <p className="text-sm">Subtotal: <span className="font-medium">{formatCurrency(invoice.subtotal ?? 0)}</span></p>
+            <p className="text-sm">IVA: <span className="font-medium">{formatCurrency(invoice.taxTotal ?? 0)}</span></p>
+            <p className="text-lg font-semibold">Total: {formatCurrency(invoice.total ?? 0)}</p>
           </div>
         </CardContent>
       </Card>
 
       {invoice.notes && (
-        <Card className="border shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">Notas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">{invoice.notes}</p>
-          </CardContent>
-        </Card>
+        <Card className="border shadow-sm"><CardHeader><CardTitle className="text-base">Notas</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">{invoice.notes}</p></CardContent></Card>
       )}
 
-      {/* DIALOG EDIT STATUS */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+      {/* STATUS DIALOG */}
+      <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
         <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Cambiar estado</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Cambiar estado</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <Label>Estado</Label>
-            <Select
-              value={editStatus}
-              onValueChange={(v) => setEditStatus(v as Invoice["status"])}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+            <Select value={editStatus} onValueChange={(v) => setEditStatus(v as Invoice["status"])}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {invoice.status !== "sent" && (
-                  <SelectItem value="draft">Borrador</SelectItem>
-                )}
-                <SelectItem value="sent">Enviada</SelectItem>
-                <SelectItem value="paid">Pagada</SelectItem>
-                <SelectItem value="overdue">Vencida</SelectItem>
+                {invoice.status !== "sent" && <SelectItem value="draft">Borrador</SelectItem>}
+                <SelectItem value="sent">Enviada</SelectItem><SelectItem value="paid">Pagada</SelectItem><SelectItem value="overdue">Vencida</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={() => updateMutation.mutate({ status: editStatus })}
-            >
-              Guardar
+            <Button variant="outline" onClick={() => setStatusDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={() => updateMutation.mutate({ status: editStatus })} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</> : "Guardar"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* EDIT INVOICE DIALOG */}
+      {editForm && (
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader><DialogTitle>Editar factura</DialogTitle></DialogHeader>
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5"><Label>NIF/CIF del cliente</Label><Input value={editForm.clientNif} onChange={(e) => setEditForm({ ...editForm, clientNif: e.target.value })} /></div>
+                <div className="space-y-1.5"><Label>NIF/CIF del emisor</Label><Input value={editForm.issuerNif} onChange={(e) => setEditForm({ ...editForm, issuerNif: e.target.value })} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><Label>Fecha emisión</Label><Input type="date" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} /></div>
+                <div className="space-y-1.5"><Label>Fecha vencimiento</Label><Input type="date" value={editForm.dueDate} onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })} /></div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium">Conceptos</p>
+                  <Button variant="outline" size="sm" onClick={() => setEditForm({ ...editForm, lines: [...editForm.lines, emptyLine()] })}><Plus className="mr-1 h-3 w-3" /> Añadir línea</Button>
+                </div>
+                <div className="space-y-2">
+                  {editForm.lines.map((line: InvoiceLine, idx: number) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-5 space-y-1">
+                        {idx === 0 && <Label className="text-xs">Descripción</Label>}
+                        <Input maxLength={150} placeholder="Concepto" value={line.description} onChange={(e) => updateEditLine(idx, "description", e.target.value)} />
+                      </div>
+                      <div className="col-span-2 space-y-1">
+                        {idx === 0 && <Label className="text-xs">Cantidad</Label>}
+                        <Input type="number" min="0" max="10000" placeholder="0" value={line.quantity || ""} onChange={(e) => handleNumericLine(idx, "quantity", e.target.value, 10000)} />
+                      </div>
+                      <div className="col-span-2 space-y-1">
+                        {idx === 0 && <Label className="text-xs">Precio €</Label>}
+                        <Input type="number" step="0.01" min="0" max="1000000" placeholder="0,00" value={line.unitPrice || ""} onChange={(e) => handleNumericLine(idx, "unitPrice", e.target.value, 1000000)} />
+                      </div>
+                      <div className="col-span-2 space-y-1">
+                        {idx === 0 && <Label className="text-xs">IVA %</Label>}
+                        <Input type="number" min="0" max="100" placeholder="21" value={line.taxRate || ""} onChange={(e) => handleNumericLine(idx, "taxRate", e.target.value, 100)} />
+                      </div>
+                      <div className="col-span-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { if (editForm.lines.length <= 1) return; setEditForm({ ...editForm, lines: editForm.lines.filter((_: any, i: number) => i !== idx) }); }} disabled={editForm.lines.length <= 1}>×</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 text-right space-y-1 text-sm">
+                  <p>Subtotal: <span className="font-medium">{formatCurrency(calcTotals(editForm.lines).subtotal)}</span></p>
+                  <p>IVA: <span className="font-medium">{formatCurrency(calcTotals(editForm.lines).taxTotal)}</span></p>
+                  <p className="text-base font-semibold">Total: {formatCurrency(calcTotals(editForm.lines).total)}</p>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Notas / Observaciones</Label>
+                <Textarea maxLength={1500} value={editForm.notes} rows={2} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
+                <p className="text-xs text-muted-foreground text-right">{editForm.notes.length}/1500</p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
+              <Button onClick={saveEditInvoice} disabled={updateMutation.isPending || !isEditFormValid}>
+                {updateMutation.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</> : "Guardar cambios"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      <ConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title="Eliminar factura" description="¿Seguro que quieres eliminar esta factura? Esta acción no se puede deshacer."
+        onConfirm={() => deleteMutation.mutate()} loading={deleteMutation.isPending} />
     </div>
   );
 };
