@@ -1,143 +1,133 @@
-import { useState, useMemo, useRef } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import {
-  Users, Package, CalendarDays, Clock, MapPin, ChevronLeft, ChevronRight, Play, CheckCircle, FileText, Loader2, User,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
+import { clientsApi } from "@/api/clientsApi";
+import { tasksApi } from "@/api/tasksApi";
+import { invoicesApi } from "@/api/invoicesApi";
+import { productsApi } from "@/api/productsApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageLoader } from "@/components/common/PageLoader";
+import { Users, CalendarDays, FileText, Package, ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getClients } from "@/api/ClientApi";
-import { getStock } from "@/api/StockApi";
-import { getTasks, updateTask } from "@/api/TaskApi";
-import { getInvoices } from "@/api/InvoiceApi";
-import { Task } from "@/data/mockData";
-
-const estadoColor: Record<string, string> = {
-  pending: "bg-warning/15 text-warning-foreground border-warning/30",
-  in_progress: "bg-primary/10 text-primary border-primary/30",
-  completed: "bg-success/15 text-success border-success/30",
-};
-const estadoLabel: Record<string, string> = { pending: "Pendiente", in_progress: "En progreso", completed: "Completada" };
 
 const DashboardPage = () => {
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [dayOffset, setDayOffset] = useState(0);
 
-  const profileImage = localStorage.getItem("profile_image");
-
-  const { data: clients } = useQuery({ queryKey: ["clients"], queryFn: getClients });
-  const { data: stock } = useQuery({ queryKey: ["stock"], queryFn: getStock });
-  const { data: tasks } = useQuery({ queryKey: ["tasks"], queryFn: () => getTasks() });
-  const { data: invoices } = useQuery({ queryKey: ["invoices"], queryFn: () => getInvoices() });
-
-  const selectedDate = useMemo(() => { const d = new Date(); d.setDate(d.getDate() + dayOffset); return d; }, [dayOffset]);
-  const dateStr = selectedDate.toISOString().split("T")[0];
-  const tareasDelDia = tasks?.filter((t: Task) => t.date === dateStr) ?? [];
-
-  const formatDate = (date: Date) => date.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: Task["status"] }) => updateTask(id, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
-    onError: () => toast.error("Error actualizando el estado del aviso"),
+  const { data: clients, isLoading: lc } = useQuery({
+    queryKey: ["clients"],
+    queryFn: () => clientsApi.list(),
+    enabled: hasPermission("clients", "read"),
   });
 
-  const handleEstado = (id: string, status: Task["status"]) => {
-    const next = status === "pending" ? "in_progress" : "completed";
-    updateMutation.mutate({ id, status: next });
-    toast.success(next === "in_progress" ? "Aviso iniciado" : "Aviso finalizado");
+  const { data: tasks, isLoading: lt } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: () => tasksApi.list(),
+    enabled: hasPermission("tasks", "read"),
+  });
+
+  const { data: invoices, isLoading: li } = useQuery({
+    queryKey: ["invoices"],
+    queryFn: () => invoicesApi.list(),
+    enabled: hasPermission("invoices", "read"),
+  });
+
+  const { data: products, isLoading: lp } = useQuery({
+    queryKey: ["products"],
+    queryFn: () => productsApi.list(),
+    enabled: hasPermission("products", "read"),
+  });
+
+  const isLoading = lc || lt || li || lp;
+
+  const todayTasks = (tasks || []).filter((t) => {
+    if (!t.date) return false;
+    const today = new Date().toISOString().slice(0, 10);
+    return t.date.slice(0, 10) === today;
+  });
+
+  const stats = [
+    { label: "Clientes", value: clients?.length ?? 0, icon: Users, to: "/clients", color: "text-primary" },
+    { label: "Avisos hoy", value: todayTasks.length, icon: CalendarDays, to: "/tasks", color: "text-warning" },
+    { label: "Facturas", value: invoices?.length ?? 0, icon: FileText, to: "/invoices", color: "text-success" },
+    { label: "Productos", value: products?.length ?? 0, icon: Package, to: "/products", color: "text-accent" },
+  ];
+
+  if (isLoading) return <PageLoader text="Cargando dashboard…" />;
+
+  const statusColor: Record<string, string> = {
+    pending: "bg-warning/10 text-warning",
+    in_progress: "bg-primary/10 text-primary",
+    completed: "bg-success/10 text-success",
+  };
+
+  const statusLabel: Record<string, string> = {
+    pending: "Pendiente",
+    in_progress: "En progreso",
+    completed: "Completado",
   };
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      {/* HEADER with profile photo */}
-      <div className="flex items-center justify-between">
-        <div />
-        <div className="text-center flex-1">
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">{user?.name || "Dashboard"}</h1>
-          <p className="text-sm text-muted-foreground mt-1">Resumen de tu actividad</p>
-        </div>
-        <div
-          className="h-10 w-10 rounded-full bg-muted flex items-center justify-center overflow-hidden cursor-pointer shrink-0"
-          onClick={() => navigate("/profile")}
-        >
-          {profileImage ? (
-            <img src={profileImage} alt="Perfil" className="h-full w-full object-cover" />
-          ) : (
-            <User className="h-5 w-5 text-muted-foreground" />
-          )}
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-center">
+          Bienvenido, {user?.name}
+        </h1>
+        <p className="text-center text-sm text-muted-foreground mt-1">Panel de control</p>
       </div>
 
-      {/* STATS */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-        {[
-          { label: "Clientes", value: clients?.length ?? 0, icon: Users, to: "/clients" },
-          { label: "Stock", value: stock?.reduce((a, i) => a + i.quantity, 0) ?? 0, icon: Package, to: "/stock" },
-          { label: "Facturas", value: invoices?.length ?? 0, icon: FileText, to: "/invoices" },
-          { label: "Avisos para hoy", value: tasks?.filter((t: Task) => t.date === new Date().toISOString().split("T")[0]).length ?? 0, icon: CalendarDays, to: "/tasks" },
-        ].map(({ label, value, icon: Icon, to }) => (
-          <Card key={label} className="border shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-primary/30" onClick={() => navigate(to)}>
-            <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
-              <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-primary/10"><Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" /></div>
-              <div><p className="text-xl sm:text-2xl font-semibold">{value}</p><p className="text-xs text-muted-foreground">{label}</p></div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((s) => (
+          <Card key={s.label}
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => navigate(s.to)}
+          >
+            <CardContent className="flex items-center gap-3 p-4">
+              <s.icon className={cn("h-8 w-8", s.color)} />
+              <div>
+                <p className="text-2xl font-bold">{s.value}</p>
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* AGENDA */}
-      <Card className="border shadow-sm">
-        <CardHeader className="flex-col sm:flex-row sm:justify-between gap-3">
-          <CardTitle className="text-lg font-semibold">Agenda del día</CardTitle>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setDayOffset((p) => p - 1)} className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground"><ChevronLeft className="h-4 w-4" /></button>
-            <span className="min-w-[140px] sm:min-w-[180px] text-center text-sm font-medium capitalize">
-              {dayOffset === 0 ? "Hoy" : dayOffset === 1 ? "Mañana" : dayOffset === -1 ? "Ayer" : ""}{" — "}{formatDate(selectedDate)}
-            </span>
-            <button onClick={() => setDayOffset((p) => p + 1)} className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground"><ChevronRight className="h-4 w-4" /></button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <AnimatePresence mode="wait">
-            <motion.div key={dateStr} initial={{ opacity: 0, x: 25 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -25 }} transition={{ duration: 0.2 }} className="space-y-3">
-              {tareasDelDia.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">No hay avisos programados para este día</p>
-              ) : (
-                tareasDelDia.map((task) => (
-                  <div key={task.id} className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4 border rounded-lg p-3 sm:p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/tasks/${task.id}`)}>
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10"><Clock className="h-4 w-4 text-primary" /></div>
-                    <div className="flex-1 space-y-1 min-w-0">
-                      <p className="text-sm font-medium">{task.description}</p>
-                      <p className="text-sm text-muted-foreground">{task.clientName}</p>
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{task.time}</span>
-                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{task.address}</span>
-                      </div>
-                      {task.images && task.images.length > 0 && <p className="text-xs text-primary">{task.images.length} foto(s) adjuntas</p>}
+      {hasPermission("tasks", "read") && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-lg">Avisos de hoy</CardTitle>
+            <button onClick={() => navigate("/tasks")} className="text-sm text-primary hover:underline inline-flex items-center gap-1">
+              Ver todos <ArrowRight className="h-3 w-3" />
+            </button>
+          </CardHeader>
+          <CardContent>
+            {todayTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">No hay avisos para hoy</p>
+            ) : (
+              <div className="space-y-3">
+                {todayTasks.map((t) => (
+                  <div key={t._id}
+                    className="flex items-center justify-between rounded-lg border border-border p-3 hover:bg-muted/30 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/tasks/${t._id}`)}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">{t.title}</p>
+                      {t.client && <p className="text-xs text-muted-foreground">{t.client.name}</p>}
                     </div>
-                    <div className="flex flex-col items-end gap-2 shrink-0 self-start">
-                      <Badge variant="outline" className={estadoColor[task.status]}>{estadoLabel[task.status]}</Badge>
-                      {task.status !== "completed" && (
-                        <Button variant="outline" size="sm" className="shrink-0" onClick={(e) => { e.stopPropagation(); handleEstado(task.id, task.status); }} disabled={updateMutation.isPending}>
-                          {task.status === "pending" ? (<><Play className="mr-1 h-3 w-3" /> Iniciar</>) : (<><CheckCircle className="mr-1 h-3 w-3" /> Finalizar</>)}
-                        </Button>
-                      )}
-                    </div>
+                    <Badge className={cn("ml-2 text-xs", statusColor[t.status])}>
+                      {statusLabel[t.status] || t.status}
+                    </Badge>
                   </div>
-                ))
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

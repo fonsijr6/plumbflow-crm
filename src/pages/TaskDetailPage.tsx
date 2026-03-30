@@ -1,182 +1,146 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getTask, updateTask, deleteTask } from "@/api/TaskApi";
-import { Clock, Calendar, MapPin, ChevronLeft, Pencil, Trash2, Camera, X, Loader2 } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { tasksApi, TaskPayload } from "@/api/tasksApi";
+import { clientsApi } from "@/api/clientsApi";
+import { PageHeader } from "@/components/common/PageHeader";
+import { PageLoader } from "@/components/common/PageLoader";
+import { IfPermission } from "@/components/common/IfPermission";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useState, useRef, useMemo } from "react";
-import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
-import { uploadImageToCloudinary } from "@/utils/uploadImage";
-import ConfirmDialog from "@/components/ConfirmDialog";
-
-const estadoColor: Record<string, string> = {
-  pending: "bg-warning/15 text-warning-foreground border-warning/30",
-  in_progress: "bg-primary/10 text-primary border-primary/30",
-  completed: "bg-success/15 text-success border-success/30",
-};
-const estadoLabel: Record<string, string> = { pending: "Pendiente", in_progress: "En progreso", completed: "Completada" };
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Upload } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const TaskDetailPage = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<TaskPayload>({ title: "" });
 
-  const [taskForm, setTaskForm] = useState<any>({});
-  const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-
-  const { data: task, isLoading } = useQuery({ queryKey: ["task", id], queryFn: () => getTask(id!) });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) => updateTask(id, payload),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["task", id] }); queryClient.invalidateQueries({ queryKey: ["tasks"] }); toast.success("Aviso actualizado"); setEditOpen(false); },
+  const { data: task, isLoading } = useQuery({
+    queryKey: ["task", id],
+    queryFn: () => tasksApi.get(id!),
+    enabled: !!id,
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteTask,
-    onSuccess: () => { toast.success("Aviso eliminado"); queryClient.invalidateQueries({ queryKey: ["tasks"] }); navigate("/tasks"); },
+  const { data: clients = [] } = useQuery({ queryKey: ["clients"], queryFn: () => clientsApi.list() });
+
+  const updateMut = useMutation({
+    mutationFn: (p: Partial<TaskPayload>) => tasksApi.update(id!, p),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["task", id] }); qc.invalidateQueries({ queryKey: ["tasks"] }); setEditing(false); toast.success("Aviso actualizado"); },
   });
 
-  const openEditTask = () => {
-    setTaskForm({ description: task.description, date: task.date, time: task.time, address: task.address, status: task.status, images: task.images || [] });
-    setEditOpen(true);
+  const uploadMut = useMutation({
+    mutationFn: (fd: FormData) => tasksApi.uploadImages(id!, fd),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["task", id] }); toast.success("Imágenes subidas"); },
+  });
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    const fd = new FormData();
+    Array.from(files).forEach((f) => fd.append("images", f));
+    uploadMut.mutate(fd);
   };
 
-  const isFormValid = useMemo(() => {
-    if (!taskForm.description?.trim()) return false;
-    if (!taskForm.date) return false;
-    if (!taskForm.time) return false;
-    return true;
-  }, [taskForm]);
+  const statusColor: Record<string, string> = { pending: "bg-warning/10 text-warning", in_progress: "bg-primary/10 text-primary", completed: "bg-success/10 text-success" };
+  const statusLabel: Record<string, string> = { pending: "Pendiente", in_progress: "En progreso", completed: "Completado" };
+  const nextStatus: Record<string, string> = { pending: "in_progress", in_progress: "completed" };
+  const nextLabel: Record<string, string> = { pending: "Iniciar", in_progress: "Finalizar" };
 
-  const saveTask = () => {
-    if (!taskForm.description?.trim()) { toast.error("La descripción es obligatoria"); return; }
-    updateMutation.mutate({ id: task.id, payload: taskForm });
-  };
-
-  const handleAddPhotos = () => fileInputRef.current?.click();
-
-  const handleFileChange = async (files: FileList | null) => {
-    if (!files || !task) return;
-    const urls = await Promise.all(Array.from(files).map((file) => uploadImageToCloudinary(file)));
-    updateMutation.mutate({ id: task.id, payload: { images: [...(task.images || []), ...urls] } });
-  };
-
-  const removePhoto = (index: number) => {
-    setTaskForm((prev: any) => ({ ...prev, images: prev.images.filter((_: any, i: number) => i !== index) }));
-  };
-
-  const handleEstado = () => {
-    const next = task.status === "pending" ? "in_progress" : task.status === "in_progress" ? "completed" : "completed";
-    updateMutation.mutate({ id: task.id, payload: { status: next } });
-  };
-
-  if (isLoading || !task) return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+  if (isLoading || !task) return <PageLoader />;
 
   return (
-    <div className="space-y-6">
-      <div className="sticky top-0 bg-background border-b pb-3 pt-2 z-20">
-        <button onClick={() => navigate("/tasks")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ChevronLeft className="h-4 w-4" /> Volver a avisos
-        </button>
-        <div className="flex justify-between items-center mt-3">
-          <div>
-            <h1 className="text-2xl font-semibold">{task.description}</h1>
-            <p className="text-sm text-muted-foreground">{task.clientName}</p>
-          </div>
+    <div>
+      <PageHeader title={task.title} backTo="/tasks" backLabel="Volver a avisos"
+        actions={
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={openEditTask}><Pencil className="h-4 w-4 mr-1" /> Editar</Button>
-            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}><Trash2 className="h-4 w-4 mr-1" /> Eliminar</Button>
+            {nextStatus[task.status] && (
+              <IfPermission module="tasks" action="update">
+                <Button onClick={() => updateMut.mutate({ status: nextStatus[task.status] })} disabled={updateMut.isPending}>
+                  {updateMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {nextLabel[task.status]}
+                </Button>
+              </IfPermission>
+            )}
+            <IfPermission module="tasks" action="update">
+              <Button variant="outline" onClick={() => {
+                setForm({ title: task.title, description: task.description, clientId: task.clientId || task.client?._id, date: task.date?.slice(0, 10), address: task.address });
+                setEditing(true);
+              }}>
+                Editar
+              </Button>
+            </IfPermission>
           </div>
-        </div>
+        }
+      />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle>Detalles</CardTitle></CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div><span className="text-muted-foreground">Estado:</span> <Badge className={cn("ml-1 text-xs", statusColor[task.status])}>{statusLabel[task.status]}</Badge></div>
+            {task.client && <div><span className="text-muted-foreground">Cliente:</span> <button onClick={() => navigate(`/clients/${task.client!._id}`)} className="ml-1 text-primary hover:underline">{task.client.name}</button></div>}
+            {task.description && <div><span className="text-muted-foreground">Descripción:</span> <span className="ml-1">{task.description}</span></div>}
+            {task.address && <div><span className="text-muted-foreground">Dirección:</span> <span className="ml-1">{task.address}</span></div>}
+            {task.date && <div><span className="text-muted-foreground">Fecha:</span> <span className="ml-1">{new Date(task.date).toLocaleDateString("es-ES")}</span></div>}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Imágenes</CardTitle>
+            <IfPermission module="tasks" action="update">
+              <label className="cursor-pointer">
+                <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
+                <div className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+                  <Upload className="h-4 w-4" /> Subir
+                </div>
+              </label>
+            </IfPermission>
+          </CardHeader>
+          <CardContent>
+            {(!task.images || task.images.length === 0) ? (
+              <p className="text-sm text-muted-foreground">Sin imágenes</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {task.images.map((src, i) => (
+                  <img key={i} src={src} alt={`Imagen ${i + 1}`} className="rounded-lg object-cover aspect-square" />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Información</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-2 text-sm"><Clock className="h-4 w-4 text-muted-foreground" />{task.time}</div>
-          <div className="flex items-center gap-2 text-sm"><Calendar className="h-4 w-4 text-muted-foreground" />{new Date(task.date).toLocaleDateString("es-ES")}</div>
-          <div className="flex items-center gap-2 text-sm"><MapPin className="h-4 w-4 text-muted-foreground" />{task.address}</div>
-          <Badge variant="outline" className={estadoColor[task.status]}>{estadoLabel[task.status]}</Badge>
-          <div className="flex gap-2 pt-2">
-            {task.status !== "completed" && (
-              <Button size="sm" onClick={handleEstado} disabled={updateMutation.isPending}>
-                {updateMutation.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
-                {task.status === "pending" ? "Iniciar aviso" : "Finalizar aviso"}
-              </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={() => navigate(`/clients/${task.clientId}`)}>Ver cliente</Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex justify-between items-center">
-          <CardTitle className="text-base">Fotos</CardTitle>
-          <Button size="sm" onClick={handleAddPhotos}><Camera className="h-4 w-4 mr-1" /> Añadir fotos</Button>
-          <input ref={fileInputRef} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => handleFileChange(e.target.files)} />
-        </CardHeader>
-        <CardContent>
-          {(!task.images || task.images.length === 0) && <p className="text-sm text-muted-foreground">No hay fotos adjuntas</p>}
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mt-2">
-            {task.images?.map((img: string, i: number) => (<img key={i} src={img} alt="" className="w-full h-24 object-cover rounded border" />))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* EDIT DIALOG */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+      <Dialog open={editing} onOpenChange={setEditing}>
         <DialogContent>
           <DialogHeader><DialogTitle>Editar aviso</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5"><Label>Descripción *</Label><Input maxLength={150} value={taskForm.description} onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label>Fecha</Label><Input type="date" value={taskForm.date} onChange={(e) => setTaskForm({ ...taskForm, date: e.target.value })} /></div>
-              <div className="space-y-1.5"><Label>Hora</Label><Input type="time" value={taskForm.time} onChange={(e) => setTaskForm({ ...taskForm, time: e.target.value })} /></div>
-            </div>
-            <div className="space-y-1.5"><Label>Dirección</Label><Input maxLength={150} value={taskForm.address} onChange={(e) => setTaskForm({ ...taskForm, address: e.target.value })} /></div>
-            <div className="space-y-1.5">
-              <Label>Estado *</Label>
-              <Select value={taskForm.status} onValueChange={(value) => setTaskForm({ ...taskForm, status: value })}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar estado" /></SelectTrigger>
-                <SelectContent><SelectItem value="pending">Pendiente</SelectItem><SelectItem value="in_progress">En progreso</SelectItem><SelectItem value="completed">Completada</SelectItem></SelectContent>
+          <form onSubmit={(e) => { e.preventDefault(); updateMut.mutate(form); }} className="space-y-4">
+            <div className="space-y-2"><Label>Título *</Label><Input maxLength={150} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Descripción</Label><Input maxLength={150} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+            <div className="space-y-2">
+              <Label>Cliente</Label>
+              <Select value={form.clientId} onValueChange={(v) => setForm({ ...form, clientId: v })}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                <SelectContent>{clients.map((c) => <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Fotos</Label>
-              <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1"><Camera className="h-4 w-4" /> Añadir fotos</Button>
-              <input ref={fileInputRef} type="file" accept="image/*" capture="environment" multiple className="hidden"
-                onChange={async (e) => { const files = e.target.files; if (!files) return; const urls = await Promise.all(Array.from(files).map((f) => uploadImageToCloudinary(f))); setTaskForm((prev: any) => ({ ...prev, images: [...(prev.images || []), ...urls] })); }} />
-              {taskForm.images?.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 mt-2">
-                  {taskForm.images.map((img: string, i: number) => (
-                    <div key={i} className="relative group">
-                      <img src={img} className="w-full h-24 object-cover rounded border" />
-                      <button type="button" onClick={() => removePhoto(i)} className="absolute top-1 right-1 bg-destructive text-destructive-foreground text-xs px-1 rounded opacity-0 group-hover:opacity-100"><X className="h-3 w-3" /></button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
-            <Button onClick={saveTask} disabled={updateMutation.isPending || !isFormValid}>
-              {updateMutation.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</> : "Guardar cambios"}
+            <div className="space-y-2"><Label>Fecha</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Dirección</Label><Input maxLength={150} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+            <Button type="submit" className="w-full" disabled={!form.title?.trim() || updateMut.isPending}>
+              {updateMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Guardar
             </Button>
-          </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
-
-      <ConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title="Eliminar aviso" description="¿Seguro que quieres eliminar este aviso? Esta acción no se puede deshacer."
-        onConfirm={() => deleteMutation.mutate(task.id)} loading={deleteMutation.isPending} />
     </div>
   );
 };

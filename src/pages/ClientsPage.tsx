@@ -1,226 +1,108 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Phone, Mail, ChevronRight, Plus, Loader2, Home } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getClients, createClient } from "@/api/ClientApi";
-import { Client } from "@/data/mockData";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { clientsApi, ClientPayload } from "@/api/clientsApi";
+import { IfPermission } from "@/components/common/IfPermission";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { PageHeader } from "@/components/common/PageHeader";
+import { PageLoader } from "@/components/common/PageLoader";
+import { DataTable } from "@/components/common/DataTable";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Plus, Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { validateClientForm, isValidEmail, isValidPhone } from "@/lib/validators";
 
-const emptyClient = (): Omit<Client, "id" | "createdAt"> => ({
-  name: "", phone: "", email: "", address: "", notes: "",
-});
+const empty: ClientPayload = { name: "", email: "", phone: "", address: "", nif: "", notes: "" };
 
 const ClientsPage = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-
+  const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState<Omit<Client, "id" | "createdAt">>(emptyClient());
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState<ClientPayload>(empty);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const { data: clients, isLoading } = useQuery({
-    queryKey: ["clients"],
-    queryFn: getClients,
+  const { data: clients = [], isLoading } = useQuery({ queryKey: ["clients"], queryFn: () => clientsApi.list() });
+
+  const createMut = useMutation({
+    mutationFn: (p: ClientPayload) => clientsApi.create(p),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["clients"] }); setModal(false); setForm(empty); toast.success("Cliente creado"); },
   });
 
-  const createMutation = useMutation({
-    mutationFn: createClient,
-    onSuccess: () => {
-      toast.success("Cliente creado satisfactoriamente");
-      queryClient.invalidateQueries({ queryKey: ["clients"] });
-      setDialogOpen(false);
-      setForm(emptyClient());
-      setFieldErrors({});
-    },
-    onError: (err: any) => {
-      toast.error(err?.response?.data?.message || "Error creando cliente");
-    },
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => clientsApi.delete(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["clients"] }); setDeleteId(null); toast.success("Cliente eliminado"); },
   });
 
-  const isFormValid = useMemo(() => {
-    if (!form.name.trim()) return false;
-    if (form.phone && !isValidPhone(form.phone)) return false;
-    if (form.email && !isValidEmail(form.email)) return false;
-    return true;
-  }, [form]);
+  const filtered = clients.filter((c) =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    (c.email || "").toLowerCase().includes(search.toLowerCase())
+  );
 
-  const handleSave = () => {
-    const errors = validateClientForm(form);
-    if (errors.length) {
-      const map: Record<string, string> = {};
-      errors.forEach((e) => (map[e.field] = e.message));
-      setFieldErrors(map);
-      toast.error(errors[0].message);
-      return;
-    }
-    setFieldErrors({});
-    createMutation.mutate(form);
-  };
+  const isFormValid = form.name.trim().length > 0;
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  const filtered =
-    clients?.filter((c) =>
-      [c.name, c.phone, c.email].join(" ").toLowerCase().includes(search.toLowerCase()),
-    ) || [];
+  if (isLoading) return <PageLoader />;
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="shrink-0 space-y-4 pb-4">
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <Home className="h-4 w-4" /> Volver a inicio
-        </button>
+    <div>
+      <PageHeader title="Clientes" backTo="/dashboard" backLabel="Volver a inicio"
+        actions={
+          <IfPermission module="clients" action="create">
+            <Button onClick={() => setModal(true)}><Plus className="h-4 w-4" /> Nuevo cliente</Button>
+          </IfPermission>
+        }
+      />
 
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {clients?.length ?? 0} clientes registrados
-            </p>
-          </div>
-          <Button onClick={() => setDialogOpen(true)} size="sm">
-            <Plus className="mr-1 h-4 w-4" /> Nuevo cliente
-          </Button>
-        </div>
-
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Buscar cliente..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+      <div className="mb-4 relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Buscar cliente…" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
-      <ScrollArea className="flex-1 -mx-1 px-1">
-        <div className="space-y-2 pb-4">
-          {filtered.map((c) => (
-            <Card
-              key={c.id}
-              className="cursor-pointer border shadow-sm transition-all hover:shadow-md hover:border-primary/30"
-              onClick={() => navigate(`/clients/${c.id}`)}
-            >
-              <CardContent className="flex items-center justify-between p-4">
-                <div className="space-y-1 min-w-0 flex-1">
-                  <p className="font-medium text-sm truncate">{c.name}</p>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Phone className="h-3 w-3 shrink-0" />
-                      <span className="truncate">{c.phone}</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Mail className="h-3 w-3 shrink-0" />
-                      <span className="truncate">{c.email}</span>
-                    </span>
-                  </div>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 ml-2" />
-              </CardContent>
-            </Card>
-          ))}
-          {filtered.length === 0 && (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No se han encontrado clientes
-            </p>
-          )}
-        </div>
-      </ScrollArea>
+      <DataTable
+        columns={[
+          { key: "name", header: "Nombre" },
+          { key: "email", header: "Email", className: "hidden sm:table-cell" },
+          { key: "phone", header: "Teléfono", className: "hidden md:table-cell" },
+          {
+            key: "actions", header: "", className: "w-10",
+            render: (row) => (
+              <IfPermission module="clients" action="delete">
+                <Button variant="ghost" size="sm" className="text-destructive h-8 px-2"
+                  onClick={(e) => { e.stopPropagation(); setDeleteId(row._id); }}>
+                  Eliminar
+                </Button>
+              </IfPermission>
+            ),
+          },
+        ]}
+        data={filtered as any}
+        onRowClick={(row: any) => navigate(`/clients/${row._id}`)}
+        emptyMessage="No hay clientes"
+      />
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Nuevo cliente</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Nombre *</Label>
-              <Input
-                placeholder="Nombre del cliente"
-                maxLength={150}
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className={fieldErrors.name ? "border-destructive" : ""}
-              />
-              {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Teléfono</Label>
-                <Input
-                  placeholder="600123456"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className={fieldErrors.phone ? "border-destructive" : ""}
-                />
-                {fieldErrors.phone && <p className="text-xs text-destructive">{fieldErrors.phone}</p>}
-              </div>
-              <div className="space-y-1.5">
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  placeholder="email@ejemplo.com"
-                  maxLength={150}
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className={fieldErrors.email ? "border-destructive" : ""}
-                />
-                {fieldErrors.email && <p className="text-xs text-destructive">{fieldErrors.email}</p>}
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Dirección</Label>
-              <Input
-                placeholder="Calle, número, ciudad"
-                maxLength={150}
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Notas</Label>
-              <Textarea
-                placeholder="Notas adicionales..."
-                maxLength={500}
-                value={form.notes}
-                rows={2}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground text-right">{form.notes.length}/500</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={createMutation.isPending || !isFormValid}>
-              {createMutation.isPending ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
-              ) : "Guardar"}
+      <Dialog open={modal} onOpenChange={setModal}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Nuevo cliente</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); createMut.mutate(form); }} className="space-y-4">
+            <div className="space-y-2"><Label>Nombre *</Label><Input maxLength={150} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Email</Label><Input type="email" maxLength={150} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Teléfono</Label><Input maxLength={20} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Dirección</Label><Input maxLength={150} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+            <div className="space-y-2"><Label>NIF/CIF</Label><Input maxLength={20} value={form.nif} onChange={(e) => setForm({ ...form, nif: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Notas</Label><Textarea maxLength={500} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            <Button type="submit" className="w-full" disabled={!isFormValid || createMut.isPending}>
+              {createMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Crear cliente
             </Button>
-          </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}
+        title="Eliminar cliente" description="¿Seguro que quieres eliminar este cliente?"
+        onConfirm={() => deleteId && deleteMut.mutate(deleteId)} loading={deleteMut.isPending} />
     </div>
   );
 };
