@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { invoicesApi, InvoicePayload, InvoiceLine } from "@/api/invoicesApi";
+import { quotesApi, QuotePayload, QuoteLine } from "@/api/quotesApi";
 import { clientsApi } from "@/api/clientsApi";
 import { IfPermission } from "@/components/common/IfPermission";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -19,59 +19,54 @@ import { Plus, Search, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const emptyLine: InvoiceLine = { description: "", quantity: 1, price: 0, iva: 21 };
+const emptyLine: QuoteLine = { description: "", quantity: 1, price: 0, iva: 21 };
 
-const InvoicesPage = () => {
+const QuotesPage = () => {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [sp] = useSearchParams();
-  const filterClientId = sp.get("clientId") || "";
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState<InvoicePayload>({ clientId: filterClientId, lines: [{ ...emptyLine }], notes: "" });
+  const [form, setForm] = useState<QuotePayload>({ clientId: "", lines: [{ ...emptyLine }], notes: "" });
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ["invoices", filterClientId],
-    queryFn: () => invoicesApi.list(filterClientId ? { clientId: filterClientId } : undefined),
-  });
+  const { data: quotes = [], isLoading } = useQuery({ queryKey: ["quotes"], queryFn: () => quotesApi.list() });
   const { data: clients = [] } = useQuery({ queryKey: ["clients"], queryFn: () => clientsApi.list() });
 
   const createMut = useMutation({
-    mutationFn: (p: InvoicePayload) => invoicesApi.create(p),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["invoices"] }); setModal(false); toast.success("Factura creada"); },
+    mutationFn: (p: QuotePayload) => quotesApi.create(p),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["quotes"] }); setModal(false); toast.success("Presupuesto creado"); },
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: string) => invoicesApi.delete(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["invoices"] }); setDeleteId(null); toast.success("Factura eliminada"); },
+    mutationFn: (id: string) => quotesApi.delete(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["quotes"] }); setDeleteId(null); toast.success("Presupuesto eliminado"); },
   });
 
-  const filtered = invoices.filter((i) =>
-    (i.client?.name || "").toLowerCase().includes(search.toLowerCase()) ||
-    String(i.number || "").includes(search)
+  const filtered = quotes.filter((q) =>
+    (q.client?.name || "").toLowerCase().includes(search.toLowerCase()) ||
+    String(q.number || "").includes(search)
   );
 
   const addLine = () => setForm({ ...form, lines: [...form.lines, { ...emptyLine }] });
   const removeLine = (idx: number) => setForm({ ...form, lines: form.lines.filter((_, i) => i !== idx) });
-  const updateLine = (idx: number, field: keyof InvoiceLine, value: string | number) => {
+  const updateLine = (idx: number, field: keyof QuoteLine, value: string | number) => {
     const lines = [...form.lines];
     lines[idx] = { ...lines[idx], [field]: value };
     setForm({ ...form, lines });
   };
 
-  const statusColor: Record<string, string> = { draft: "bg-muted text-muted-foreground", sent: "bg-primary/10 text-primary", paid: "bg-success/10 text-success" };
-  const statusLabel: Record<string, string> = { draft: "Borrador", sent: "Enviada", paid: "Pagada" };
+  const statusColor: Record<string, string> = { pending: "bg-warning/10 text-warning", accepted: "bg-success/10 text-success", rejected: "bg-destructive/10 text-destructive" };
+  const statusLabel: Record<string, string> = { pending: "Pendiente", accepted: "Aceptado", rejected: "Rechazado" };
 
   if (isLoading) return <PageLoader />;
 
   return (
     <div>
-      <PageHeader title="Facturas" backTo="/dashboard" backLabel="Volver a inicio"
+      <PageHeader title="Presupuestos" backTo="/dashboard" backLabel="Volver a inicio"
         actions={
-          <IfPermission module="invoices" action="create">
-            <Button onClick={() => { setForm({ clientId: filterClientId, lines: [{ ...emptyLine }], notes: "" }); setModal(true); }}>
-              <Plus className="h-4 w-4" /> Nueva factura
+          <IfPermission module="quotes" action="create">
+            <Button onClick={() => { setForm({ clientId: "", lines: [{ ...emptyLine }], notes: "" }); setModal(true); }}>
+              <Plus className="h-4 w-4" /> Nuevo presupuesto
             </Button>
           </IfPermission>
         }
@@ -79,7 +74,7 @@ const InvoicesPage = () => {
 
       <div className="mb-4 relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Buscar factura…" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input placeholder="Buscar presupuesto…" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       <DataTable
@@ -88,11 +83,10 @@ const InvoicesPage = () => {
           { key: "client", header: "Cliente", render: (r: any) => r.client?.name || "—" },
           { key: "total", header: "Total", render: (r: any) => r.total?.toLocaleString("es-ES", { style: "currency", currency: "EUR" }) },
           { key: "status", header: "Estado", render: (r: any) => <Badge className={cn("text-xs", statusColor[r.status])}>{statusLabel[r.status]}</Badge> },
-          { key: "createdAt", header: "Fecha", className: "hidden md:table-cell", render: (r: any) => new Date(r.createdAt).toLocaleDateString("es-ES") },
           {
             key: "actions", header: "", className: "w-10",
             render: (row: any) => (
-              <IfPermission module="invoices" action="delete">
+              <IfPermission module="quotes" action="delete">
                 <Button variant="ghost" size="sm" className="text-destructive h-8 px-2"
                   onClick={(e: React.MouseEvent) => { e.stopPropagation(); setDeleteId(row._id); }}>
                   Eliminar
@@ -102,13 +96,13 @@ const InvoicesPage = () => {
           },
         ]}
         data={filtered as any}
-        onRowClick={(row: any) => navigate(`/invoices/${row._id}`)}
-        emptyMessage="No hay facturas"
+        onRowClick={(row: any) => navigate(`/quotes/${row._id}`)}
+        emptyMessage="No hay presupuestos"
       />
 
       <Dialog open={modal} onOpenChange={setModal}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Nueva factura</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Nuevo presupuesto</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); createMut.mutate(form); }} className="space-y-4">
             <div className="space-y-2">
               <Label>Cliente *</Label>
@@ -117,7 +111,6 @@ const InvoicesPage = () => {
                 <SelectContent>{clients.map((c) => <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-
             <div className="space-y-3">
               <div className="flex items-center justify-between"><Label>Conceptos</Label><Button type="button" variant="outline" size="sm" onClick={addLine}><Plus className="h-3 w-3" /> Línea</Button></div>
               {form.lines.map((line, idx) => (
@@ -130,20 +123,18 @@ const InvoicesPage = () => {
                 </div>
               ))}
             </div>
-
             <div className="space-y-2"><Label>Notas</Label><Textarea maxLength={1500} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-
-            <Button type="submit" className="w-full" disabled={!form.clientId || form.lines.length === 0 || createMut.isPending}>
-              {createMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Crear factura
+            <Button type="submit" className="w-full" disabled={!form.clientId || createMut.isPending}>
+              {createMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Crear presupuesto
             </Button>
           </form>
         </DialogContent>
       </Dialog>
 
       <ConfirmDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}
-        title="Eliminar factura" onConfirm={() => deleteId && deleteMut.mutate(deleteId)} loading={deleteMut.isPending} />
+        title="Eliminar presupuesto" onConfirm={() => deleteId && deleteMut.mutate(deleteId)} loading={deleteMut.isPending} />
     </div>
   );
 };
 
-export default InvoicesPage;
+export default QuotesPage;

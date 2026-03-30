@@ -1,156 +1,100 @@
-/* eslint-disable react-refresh/only-export-components */
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  ReactNode,
-} from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { authApi } from "@/api/authApi";
 
-import {
-  login as apiLogin,
-  register as apiRegister,
-  logout as apiLogout,
-  refreshToken,
-  getMe,
-} from "@/api/AuthApi";
+export interface UserPermissions {
+  [module: string]: { [action: string]: boolean };
+}
 
-interface User {
+export interface AuthUser {
   id: string;
   name: string;
   email: string;
-
-  // ✅ Nuevos campos del autónomo
-  issuerAddress: string;
-  issuerNif: string;
-  issuerEmail: string;
+  role: string;
+  companyId: string;
+  mustChangePassword?: boolean;
+  permissions: UserPermissions;
 }
 
 interface AuthContextType {
+  user: AuthUser | null;
   isAuthenticated: boolean;
-  user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (data: {
-    name: string;
-    email: string;
-    password: string;
-    issuerAddress: string;
-    issuerNif: string;
-    issuerEmail?: string;
-  }) => Promise<boolean>;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [ready, setReady] = useState(false);
-  const isAuthenticated = !!token;
-
-  /* ✅ LOGIN */
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const loadUser = useCallback(async () => {
     try {
-      const data = await apiLogin(email, password);
-
-      setToken(data.token);
-      setUser(data.user);
-
-      localStorage.setItem("access_token", data.token);
-      return true;
-    } catch (err) {
-      console.error("Error en login:", err);
-      return false;
+      const me = await authApi.me();
+      setUser({
+        id: me.id,
+        name: me.name,
+        email: me.email,
+        role: me.role,
+        companyId: me.companyId,
+        mustChangePassword: me.mustChangePassword,
+        permissions: me.permissions || {},
+      });
+    } catch {
+      setUser(null);
     }
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    const data = await authApi.login({ email, password });
+    setUser({
+      id: data.user.id,
+      name: data.user.name,
+      email: data.user.email,
+      role: data.user.role,
+      companyId: data.user.companyId,
+      mustChangePassword: data.user.mustChangePassword,
+      permissions: data.user.permissions || {},
+    });
   };
 
-  /* ✅ REGISTER */
-  const register = async (form: {
-    name: string;
-    email: string;
-    password: string;
-    issuerAddress: string;
-    issuerNif: string;
-    issuerEmail?: string;
-  }): Promise<boolean> => {
-    try {
-      const data = await apiRegister(form);
-
-      setToken(data.token);
-      setUser(data.user);
-
-      localStorage.setItem("access_token", data.token);
-      return true;
-    } catch (err) {
-      console.error("Error en registro:", err);
-      return false;
-    }
-  };
-
-  /* ✅ LOGOUT */
   const logout = async () => {
     try {
-      await apiLogout();
-      localStorage.removeItem("access_token");
-    } catch (err) {
-      console.error("Error en logout:", err);
-    }
-    setToken(null);
+      await authApi.logout();
+    } catch { /* ignore */ }
     setUser(null);
   };
 
-  /* ✅ REFRESH TOKEN AL CARGAR LA APP */
   useEffect(() => {
-    const initialize = async () => {
+    const init = async () => {
       try {
-        const newToken = await refreshToken();
-
-        if (newToken) {
-          setToken(newToken);
-          localStorage.setItem("access_token", newToken);
-
-          const me = await getMe(newToken);
-
-          // ✅ Guardamos TODOS los datos
-          setUser({
-            id: me.id,
-            name: me.name,
-            email: me.email,
-            issuerAddress: me.issuerAddress,
-            issuerNif: me.issuerNif,
-            issuerEmail: me.issuerEmail,
-          });
-        }
+        await authApi.refresh();
+        await loadUser();
       } catch {
-        console.log("No hay sesión activa.");
+        setUser(null);
       } finally {
-        setReady(true);
+        setIsLoading(false);
       }
     };
+    init();
 
-    initialize();
-  }, []);
+    const handleLogout = () => { setUser(null); };
+    window.addEventListener("auth:logout", handleLogout);
+    return () => window.removeEventListener("auth:logout", handleLogout);
+  }, [loadUser]);
 
-  if (!ready) {
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <AuthContext.Provider
-      value={{
-        isAuthenticated,
-        user,
-        login,
-        register,
-        logout,
-      }}
-    >
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, refreshUser: loadUser }}>
       {children}
     </AuthContext.Provider>
   );

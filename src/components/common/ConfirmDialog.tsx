@@ -9,7 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-interface ConfirmDialogProps {
+interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title?: string;
@@ -18,14 +18,11 @@ interface ConfirmDialogProps {
   loading?: boolean;
 }
 
-const ConfirmDialog = ({
-  open,
-  onOpenChange,
-  title = "¿Estás seguro?",
+export const ConfirmDialog = ({
+  open, onOpenChange, title = "¿Estás seguro?",
   description = "Esta acción no se puede deshacer.",
-  onConfirm,
-  loading,
-}: ConfirmDialogProps) => (
+  onConfirm, loading,
+}: Props) => (
   <AlertDialog open={open} onOpenChange={onOpenChange}>
     <AlertDialogContent>
       <AlertDialogHeader>
@@ -34,16 +31,10 @@ const ConfirmDialog = ({
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel>
-        <AlertDialogAction
-          onClick={onConfirm}
-          disabled={loading}
-          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-        >
-          {loading ? "Eliminando..." : "Eliminar"}
+        <AlertDialogAction onClick={onConfirm} disabled={loading}>
+          {loading ? "Eliminando…" : "Confirmar"}
         </AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>
 );
-
-export default ConfirmDialog;
