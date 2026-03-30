@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { productsApi, ProductPayload } from "@/api/productsApi";
 import { IfPermission } from "@/components/common/IfPermission";
@@ -58,14 +57,14 @@ const ProductsPage = () => {
         columns={[
           { key: "name", header: "Nombre" },
           { key: "category", header: "Categoría", className: "hidden sm:table-cell" },
-          { key: "price", header: "Precio", render: (r) => r.price?.toLocaleString("es-ES", { style: "currency", currency: "EUR" }) },
-          { key: "stock", header: "Stock", render: (r) => r.stock?.toLocaleString("es-ES") },
+          { key: "price", header: "Precio", render: (r: any) => (r.price as number)?.toLocaleString("es-ES", { style: "currency", currency: "EUR" }) },
+          { key: "stock", header: "Stock", render: (r: any) => (r.stock as number)?.toLocaleString("es-ES") },
           {
             key: "actions", header: "", className: "w-10",
-            render: (row) => (
+            render: (row: any) => (
               <IfPermission module="products" action="delete">
                 <Button variant="ghost" size="sm" className="text-destructive h-8 px-2"
-                  onClick={(e) => { e.stopPropagation(); setDeleteId(row._id); }}>
+                  onClick={(e: React.MouseEvent) => { e.stopPropagation(); setDeleteId(row._id as string); }}>
                   Eliminar
                 </Button>
               </IfPermission>
