@@ -1,13 +1,20 @@
 import { Outlet } from "react-router-dom";
-import Sidebar from "@/components/Sidebar";
+import { AppSidebar } from "@/components/common/AppSidebar";
+import { AppHeader } from "@/components/common/AppHeader";
+import { useState } from "react";
 
 const DashboardLayout = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto bg-background p-4 pt-16 lg:p-6 lg:pt-6 lg:p-8">
-        <Outlet />
-      </main>
+      <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <AppHeader onMenuToggle={() => setSidebarOpen(true)} />
+        <main className="flex-1 overflow-y-auto bg-background p-4 lg:p-6">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };
