@@ -59,13 +59,13 @@ const QuoteDetailPage = () => {
           <div className="flex gap-2">
             {quote.status === "pending" && (
               <>
-                <IfPermission module="quotes" action="update">
+                <IfPermission module="quotes" action="edit">
                   <Button onClick={() => updateMut.mutate({ status: "accepted" })} disabled={updateMut.isPending} className="bg-success hover:bg-success/90 text-success-foreground">Aceptar</Button>
                 </IfPermission>
-                <IfPermission module="quotes" action="update">
+                <IfPermission module="quotes" action="edit">
                   <Button variant="destructive" onClick={() => updateMut.mutate({ status: "rejected" })} disabled={updateMut.isPending}>Rechazar</Button>
                 </IfPermission>
-                <IfPermission module="quotes" action="update">
+                <IfPermission module="quotes" action="edit">
                   <Button variant="outline" onClick={openEdit}>Editar</Button>
                 </IfPermission>
               </>

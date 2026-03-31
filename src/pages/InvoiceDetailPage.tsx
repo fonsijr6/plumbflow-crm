@@ -64,14 +64,14 @@ const InvoiceDetailPage = () => {
         actions={
           <div className="flex gap-2">
             {invoice.status !== "paid" && (
-              <IfPermission module="invoices" action="update">
+              <IfPermission module="invoices" action="edit">
                 <Button onClick={() => updateMut.mutate({ status: "paid" })} disabled={updateMut.isPending}>
                   {updateMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Marcar pagada
                 </Button>
               </IfPermission>
             )}
             {invoice.status === "draft" && (
-              <IfPermission module="invoices" action="update">
+              <IfPermission module="invoices" action="edit">
                 <Button variant="outline" onClick={openEdit}>Editar</Button>
               </IfPermission>
             )}

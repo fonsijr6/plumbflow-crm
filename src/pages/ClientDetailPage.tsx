@@ -62,7 +62,7 @@ const ClientDetailPage = () => {
     <div>
       <PageHeader title={client.name} backTo="/clients" backLabel="Volver a clientes"
         actions={
-          <IfPermission module="clients" action="update">
+          <IfPermission module="clients" action="edit">
             <Button variant="outline" onClick={() => { initForm(); setEditing(true); }}>Editar</Button>
           </IfPermission>
         }
