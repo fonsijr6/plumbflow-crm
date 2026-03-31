@@ -97,7 +97,7 @@ const TaskDetailPage = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Imágenes</CardTitle>
-            <IfPermission module="tasks" action="update">
+            <IfPermission module="tasks" action="edit">
               <label className="cursor-pointer">
                 <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
                 <div className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
