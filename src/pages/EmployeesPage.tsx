@@ -16,13 +16,21 @@ import { Plus, Loader2, Shield } from "lucide-react";
 import { toast } from "sonner";
 
 const MODULES = ["clients", "tasks", "invoices", "quotes", "products"];
-const ACTIONS = ["read", "create", "update", "delete"];
+const MODULE_ACTIONS: Record<string, string[]> = {
+  clients: ["view", "create", "edit", "delete"],
+  tasks: ["view", "create", "edit", "assign", "complete", "delete"],
+  invoices: ["view", "create", "edit", "delete"],
+  quotes: ["view", "create", "edit", "delete"],
+  products: ["view", "create", "edit", "delete"],
+};
 
 const EmployeesPage = () => {
   const qc = useQueryClient();
   const [modal, setModal] = useState(false);
+  const [editModal, setEditModal] = useState<string | null>(null);
   const [permModal, setPermModal] = useState<string | null>(null);
   const [form, setForm] = useState<CreateEmployeePayload>({ name: "", email: "", password: "", role: "worker" });
+  const [editForm, setEditForm] = useState<{ name: string; email: string; role: string }>({ name: "", email: "", role: "" });
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [perms, setPerms] = useState<Record<string, Record<string, boolean>>>({});
 
@@ -31,6 +39,11 @@ const EmployeesPage = () => {
   const createMut = useMutation({
     mutationFn: (p: CreateEmployeePayload) => employeesApi.create(p),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["employees"] }); setModal(false); setForm({ name: "", email: "", password: "", role: "worker" }); toast.success("Empleado creado"); },
+  });
+
+  const updateMut = useMutation({
+    mutationFn: ({ id, p }: { id: string; p: Partial<{ name: string; email: string; role: string }> }) => employeesApi.update(id, p),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["employees"] }); setEditModal(null); toast.success("Empleado actualizado"); },
   });
 
   const deleteMut = useMutation({
@@ -64,9 +77,12 @@ const EmployeesPage = () => {
           { key: "email", header: "Email", className: "hidden sm:table-cell" },
           { key: "role", header: "Rol", render: (r: any) => <Badge variant="outline" className="capitalize">{r.role}</Badge> },
           {
-            key: "actions", header: "", className: "w-24",
+            key: "actions", header: "", className: "w-36",
             render: (row: any) => (
               <div className="flex gap-1">
+                <Button variant="ghost" size="sm" className="h-8 px-2" onClick={(e: React.MouseEvent) => { e.stopPropagation(); setEditForm({ name: row.name, email: row.email, role: row.role }); setEditModal(row._id); }}>
+                  Editar
+                </Button>
                 <Button variant="ghost" size="sm" className="h-8 px-2" onClick={(e: React.MouseEvent) => { e.stopPropagation(); setPerms(row.permissions || {}); setPermModal(row._id); }}>
                   <Shield className="h-3.5 w-3.5" />
                 </Button>
@@ -82,7 +98,7 @@ const EmployeesPage = () => {
         emptyMessage="No hay empleados"
       />
 
-      {/* Create employee */}
+      {/* Create */}
       <Dialog open={modal} onOpenChange={setModal}>
         <DialogContent>
           <DialogHeader><DialogTitle>Nuevo empleado</DialogTitle></DialogHeader>
@@ -108,9 +124,34 @@ const EmployeesPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Edit */}
+      <Dialog open={!!editModal} onOpenChange={() => setEditModal(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar empleado</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); editModal && updateMut.mutate({ id: editModal, p: editForm }); }} className="space-y-4">
+            <div className="space-y-2"><Label>Nombre *</Label><Input maxLength={150} value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Email *</Label><Input type="email" maxLength={150} value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} /></div>
+            <div className="space-y-2">
+              <Label>Rol</Label>
+              <Select value={editForm.role} onValueChange={(v) => setEditForm({ ...editForm, role: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="worker">Worker</SelectItem>
+                  <SelectItem value="viewer">Viewer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="submit" className="w-full" disabled={!editForm.name.trim() || !editForm.email.trim() || updateMut.isPending}>
+              {updateMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Guardar
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Permissions editor */}
       <Dialog open={!!permModal} onOpenChange={() => setPermModal(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Permisos del empleado</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="overflow-auto">
@@ -118,20 +159,29 @@ const EmployeesPage = () => {
                 <thead>
                   <tr className="border-b text-left">
                     <th className="pb-2 font-medium">Módulo</th>
-                    {ACTIONS.map((a) => <th key={a} className="pb-2 font-medium capitalize text-center">{a}</th>)}
+                    {["view", "create", "edit", "assign", "complete", "delete"].map((a) => (
+                      <th key={a} className="pb-2 font-medium capitalize text-center text-xs">{a}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {MODULES.map((mod) => (
-                    <tr key={mod} className="border-b last:border-0">
-                      <td className="py-2 capitalize">{mod}</td>
-                      {ACTIONS.map((act) => (
-                        <td key={act} className="py-2 text-center">
-                          <Checkbox checked={!!perms[mod]?.[act]} onCheckedChange={() => togglePerm(mod, act)} />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
+                  {MODULES.map((mod) => {
+                    const actions = MODULE_ACTIONS[mod];
+                    return (
+                      <tr key={mod} className="border-b last:border-0">
+                        <td className="py-2 capitalize">{mod}</td>
+                        {["view", "create", "edit", "assign", "complete", "delete"].map((act) => (
+                          <td key={act} className="py-2 text-center">
+                            {actions.includes(act) ? (
+                              <Checkbox checked={!!perms[mod]?.[act]} onCheckedChange={() => togglePerm(mod, act)} />
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

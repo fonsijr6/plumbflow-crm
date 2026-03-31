@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { authApi } from "@/api/authApi";
+import { setAccessToken } from "@/api/axiosClient";
 
 export interface UserPermissions {
   [module: string]: { [action: string]: boolean };
@@ -44,11 +45,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
     } catch {
       setUser(null);
+      setAccessToken(null);
     }
   }, []);
 
   const login = async (email: string, password: string) => {
     const data = await authApi.login({ email, password });
+    setAccessToken(data.token);
     setUser({
       id: data.user.id,
       name: data.user.name,
@@ -64,15 +67,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await authApi.logout();
     } catch { /* ignore */ }
+    setAccessToken(null);
     setUser(null);
   };
 
   useEffect(() => {
     const init = async () => {
       try {
-        await authApi.refresh();
+        const refreshData = await authApi.refresh();
+        setAccessToken(refreshData.token);
         await loadUser();
       } catch {
+        setAccessToken(null);
         setUser(null);
       } finally {
         setIsLoading(false);
@@ -80,7 +86,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
     init();
 
-    const handleLogout = () => { setUser(null); };
+    const handleLogout = () => { setAccessToken(null); setUser(null); };
     window.addEventListener("auth:logout", handleLogout);
     return () => window.removeEventListener("auth:logout", handleLogout);
   }, [loadUser]);

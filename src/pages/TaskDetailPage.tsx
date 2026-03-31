@@ -63,14 +63,14 @@ const TaskDetailPage = () => {
         actions={
           <div className="flex gap-2">
             {nextStatus[task.status] && (
-              <IfPermission module="tasks" action="update">
+              <IfPermission module="tasks" action="complete">
                 <Button onClick={() => updateMut.mutate({ status: nextStatus[task.status] })} disabled={updateMut.isPending}>
                   {updateMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                   {nextLabel[task.status]}
                 </Button>
               </IfPermission>
             )}
-            <IfPermission module="tasks" action="update">
+            <IfPermission module="tasks" action="edit">
               <Button variant="outline" onClick={() => {
                 setForm({ title: task.title, description: task.description, clientId: task.clientId || task.client?._id, date: task.date?.slice(0, 10), address: task.address });
                 setEditing(true);
@@ -97,7 +97,7 @@ const TaskDetailPage = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Imágenes</CardTitle>
-            <IfPermission module="tasks" action="update">
+            <IfPermission module="tasks" action="edit">
               <label className="cursor-pointer">
                 <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
                 <div className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
