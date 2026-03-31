@@ -5,10 +5,10 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { clientsApi } from "@/api/clientsApi";
 import { tasksApi } from "@/api/tasksApi";
 import { invoicesApi } from "@/api/invoicesApi";
-import { productsApi } from "@/api/productsApi";
+import { quotesApi } from "@/api/quotesApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageLoader } from "@/components/common/PageLoader";
-import { Users, CalendarDays, FileText, Package, ArrowRight } from "lucide-react";
+import { Users, CalendarDays, FileText, Receipt, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -20,28 +20,28 @@ const DashboardPage = () => {
   const { data: clients, isLoading: lc } = useQuery({
     queryKey: ["clients"],
     queryFn: () => clientsApi.list(),
-    enabled: hasPermission("clients", "read"),
+    enabled: hasPermission("clients", "view"),
   });
 
   const { data: tasks, isLoading: lt } = useQuery({
     queryKey: ["tasks"],
     queryFn: () => tasksApi.list(),
-    enabled: hasPermission("tasks", "read"),
+    enabled: hasPermission("tasks", "view"),
   });
 
   const { data: invoices, isLoading: li } = useQuery({
     queryKey: ["invoices"],
     queryFn: () => invoicesApi.list(),
-    enabled: hasPermission("invoices", "read"),
+    enabled: hasPermission("invoices", "view"),
   });
 
-  const { data: products, isLoading: lp } = useQuery({
-    queryKey: ["products"],
-    queryFn: () => productsApi.list(),
-    enabled: hasPermission("products", "read"),
+  const { data: quotes, isLoading: lq } = useQuery({
+    queryKey: ["quotes"],
+    queryFn: () => quotesApi.list(),
+    enabled: hasPermission("quotes", "view"),
   });
 
-  const isLoading = lc || lt || li || lp;
+  const isLoading = lc || lt || li || lq;
 
   const todayTasks = (tasks || []).filter((t) => {
     if (!t.date) return false;
@@ -49,12 +49,14 @@ const DashboardPage = () => {
     return t.date.slice(0, 10) === today;
   });
 
+  const pendingTasks = (tasks || []).filter((t) => t.status === "pending");
+
   const stats = [
-    { label: "Clientes", value: clients?.length ?? 0, icon: Users, to: "/clients", color: "text-primary" },
-    { label: "Avisos hoy", value: todayTasks.length, icon: CalendarDays, to: "/tasks", color: "text-warning" },
-    { label: "Facturas", value: invoices?.length ?? 0, icon: FileText, to: "/invoices", color: "text-success" },
-    { label: "Productos", value: products?.length ?? 0, icon: Package, to: "/products", color: "text-accent" },
-  ];
+    { label: "Clientes", value: clients?.length ?? 0, icon: Users, to: "/clients", color: "text-primary", perm: hasPermission("clients", "view") },
+    { label: "Avisos pendientes", value: pendingTasks.length, icon: CalendarDays, to: "/tasks", color: "text-warning", perm: hasPermission("tasks", "view") },
+    { label: "Facturas", value: invoices?.length ?? 0, icon: FileText, to: "/invoices", color: "text-success", perm: hasPermission("invoices", "view") },
+    { label: "Presupuestos", value: quotes?.length ?? 0, icon: Receipt, to: "/quotes", color: "text-accent", perm: hasPermission("quotes", "view") },
+  ].filter((s) => s.perm);
 
   if (isLoading) return <PageLoader text="Cargando dashboard…" />;
 
@@ -96,7 +98,7 @@ const DashboardPage = () => {
         ))}
       </div>
 
-      {hasPermission("tasks", "read") && (
+      {hasPermission("tasks", "view") && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-lg">Avisos de hoy</CardTitle>

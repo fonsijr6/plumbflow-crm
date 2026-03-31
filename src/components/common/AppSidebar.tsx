@@ -4,7 +4,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
   LayoutDashboard, Users, Package, FileText, CalendarDays, Receipt,
-  ClipboardList, Shield, LogOut, X, Sun, Moon, UserCircle,
+  ClipboardList, LogOut, X, Sun, Moon, UserCircle, Warehouse,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
@@ -14,22 +14,20 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   module?: string;
+  action?: string;
   roles?: string[];
 }
 
 const navItems: NavItem[] = [
   { to: "/dashboard", label: "Inicio", icon: LayoutDashboard },
-  { to: "/clients", label: "Clientes", icon: Users, module: "clients" },
-  { to: "/tasks", label: "Avisos", icon: CalendarDays, module: "tasks" },
-  { to: "/products", label: "Productos", icon: Package, module: "products" },
-  { to: "/invoices", label: "Facturas", icon: FileText, module: "invoices" },
-  { to: "/quotes", label: "Presupuestos", icon: Receipt, module: "quotes" },
-  { to: "/employees", label: "Empleados", icon: Users, roles: ["owner", "admin"] },
+  { to: "/clients", label: "Clientes", icon: Users, module: "clients", action: "view" },
+  { to: "/tasks", label: "Avisos", icon: CalendarDays, module: "tasks", action: "view" },
+  { to: "/products", label: "Productos", icon: Package, module: "products", action: "view" },
+  { to: "/stock", label: "Stock", icon: Warehouse, module: "products", action: "view" },
+  { to: "/invoices", label: "Facturas", icon: FileText, module: "invoices", action: "view" },
+  { to: "/quotes", label: "Presupuestos", icon: Receipt, module: "quotes", action: "view" },
+  { to: "/employees", label: "Empleados", icon: Users, module: "users", action: "view", roles: ["owner", "admin"] },
   { to: "/audit", label: "Auditoría", icon: ClipboardList, roles: ["owner", "admin"] },
-];
-
-const superAdminItems: NavItem[] = [
-  { to: "/admin/companies", label: "Empresas", icon: Shield },
 ];
 
 interface Props {
@@ -39,14 +37,14 @@ interface Props {
 
 export const AppSidebar = ({ open, onClose }: Props) => {
   const { logout, user } = useAuth();
-  const { hasPermission, hasRole, isSuperAdmin } = usePermissions();
+  const { hasPermission, hasRole } = usePermissions();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
 
   const visibleItems = navItems.filter((item) => {
     if (item.roles && !item.roles.some((r) => hasRole(r))) return false;
-    if (item.module && !hasPermission(item.module, "read")) return false;
+    if (item.module && item.action && !hasPermission(item.module, item.action)) return false;
     return true;
   });
 
@@ -74,25 +72,6 @@ export const AppSidebar = ({ open, onClose }: Props) => {
             </NavLink>
           );
         })}
-        {isSuperAdmin && (
-          <>
-            <div className="pt-4 pb-1 px-3">
-              <span className="text-xs font-semibold uppercase text-sidebar-foreground/40">Superadmin</span>
-            </div>
-            {superAdminItems.map(({ to, label, icon: Icon }) => {
-              const active = location.pathname.startsWith(to);
-              return (
-                <NavLink key={to} to={to} onClick={onClose}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
-                  )}>
-                  <Icon className="h-4 w-4" />{label}
-                </NavLink>
-              );
-            })}
-          </>
-        )}
       </nav>
 
       <div className="border-t border-sidebar-border px-3 py-4 space-y-3">

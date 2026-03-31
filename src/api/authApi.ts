@@ -5,7 +5,8 @@ export interface LoginPayload {
   password: string;
 }
 
-export interface AuthResponse {
+export interface LoginResponse {
+  token: string;
   user: {
     id: string;
     name: string;
@@ -17,15 +18,19 @@ export interface AuthResponse {
   };
 }
 
+export interface RefreshResponse {
+  token: string;
+}
+
 export const authApi = {
   login: (payload: LoginPayload) =>
-    api.post<AuthResponse>("/auth/login", payload).then((r) => r.data),
+    api.post<LoginResponse>("/auth/login", payload).then((r) => r.data),
 
   logout: () => api.post("/auth/logout"),
 
-  refresh: () => api.post<AuthResponse>("/auth/refresh").then((r) => r.data),
+  refresh: () => api.post<RefreshResponse>("/auth/refresh").then((r) => r.data),
 
-  me: () => api.get<AuthResponse["user"]>("/auth/me").then((r) => r.data),
+  me: () => api.get<LoginResponse["user"]>("/auth/me").then((r) => r.data),
 
   changePassword: (payload: { currentPassword: string; newPassword: string }) =>
     api.put("/auth/change-password", payload),

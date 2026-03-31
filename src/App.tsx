@@ -16,6 +16,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import ClientsPage from "@/pages/ClientsPage";
 import ClientDetailPage from "@/pages/ClientDetailPage";
 import ProductsPage from "@/pages/ProductsPage";
+import StockPage from "@/pages/StockPage";
 import TasksPage from "@/pages/TasksPage";
 import TaskDetailPage from "@/pages/TaskDetailPage";
 import InvoicesPage from "@/pages/InvoicesPage";
@@ -24,7 +25,6 @@ import QuotesPage from "@/pages/QuotesPage";
 import QuoteDetailPage from "@/pages/QuoteDetailPage";
 import EmployeesPage from "@/pages/EmployeesPage";
 import AuditPage from "@/pages/AuditPage";
-import AdminCompaniesPage from "@/pages/AdminCompaniesPage";
 import ProfilePage from "@/pages/ProfilePage";
 import NotFound from "@/pages/NotFound";
 
@@ -52,6 +52,7 @@ const App = () => (
                 <Route path="/clients" element={<ClientsPage />} />
                 <Route path="/clients/:id" element={<ClientDetailPage />} />
                 <Route path="/products" element={<ProductsPage />} />
+                <Route path="/stock" element={<StockPage />} />
                 <Route path="/tasks" element={<TasksPage />} />
                 <Route path="/tasks/:id" element={<TaskDetailPage />} />
                 <Route path="/invoices" element={<InvoicesPage />} />
@@ -61,7 +62,6 @@ const App = () => (
                 <Route path="/employees" element={<RequireRole roles={["owner", "admin"]}><EmployeesPage /></RequireRole>} />
                 <Route path="/audit" element={<RequireRole roles={["owner", "admin"]}><AuditPage /></RequireRole>} />
                 <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/admin/companies" element={<RequireRole roles={["superadmin"]}><AdminCompaniesPage /></RequireRole>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

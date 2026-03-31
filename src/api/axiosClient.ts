@@ -5,6 +5,21 @@ const api = axios.create({
   withCredentials: true,
 });
 
+let accessToken: string | null = null;
+
+export const setAccessToken = (token: string | null) => {
+  accessToken = token;
+};
+
+export const getAccessToken = () => accessToken;
+
+api.interceptors.request.use((config) => {
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+  return config;
+});
+
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (v: unknown) => void; reject: (e: unknown) => void }> = [];
 
@@ -29,11 +44,17 @@ api.interceptors.response.use(
       original._retry = true;
       isRefreshing = true;
       try {
-        await api.post("/auth/refresh");
+        const { data } = await axios.post(
+          `${api.defaults.baseURL}/auth/refresh`,
+          {},
+          { withCredentials: true }
+        );
+        setAccessToken(data.token);
         processQueue(null);
         return api(original);
       } catch (e) {
         processQueue(e);
+        setAccessToken(null);
         window.dispatchEvent(new Event("auth:logout"));
         return Promise.reject(e);
       } finally {
