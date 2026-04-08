@@ -52,10 +52,10 @@ const DashboardPage = () => {
   const pendingTasks = (tasks || []).filter((t) => t.status === "pending");
 
   const stats = [
-    { label: "Clientes", value: clients?.length ?? 0, icon: Users, to: "/clients", color: "text-primary", perm: hasPermission("clients", "view") },
-    { label: "Avisos pendientes", value: pendingTasks.length, icon: CalendarDays, to: "/tasks", color: "text-warning", perm: hasPermission("tasks", "view") },
-    { label: "Facturas", value: invoices?.length ?? 0, icon: FileText, to: "/invoices", color: "text-success", perm: hasPermission("invoices", "view") },
-    { label: "Presupuestos", value: quotes?.length ?? 0, icon: Receipt, to: "/quotes", color: "text-accent", perm: hasPermission("quotes", "view") },
+    { label: "Clientes", value: clients?.length ?? 0, icon: Users, to: "/clients", color: "text-primary", bg: "bg-primary/8", perm: hasPermission("clients", "view") },
+    { label: "Avisos pendientes", value: pendingTasks.length, icon: CalendarDays, to: "/tasks", color: "text-warning", bg: "bg-warning/8", perm: hasPermission("tasks", "view") },
+    { label: "Facturas", value: invoices?.length ?? 0, icon: FileText, to: "/invoices", color: "text-success", bg: "bg-success/8", perm: hasPermission("invoices", "view") },
+    { label: "Presupuestos", value: quotes?.length ?? 0, icon: Receipt, to: "/quotes", color: "text-accent", bg: "bg-accent/8", perm: hasPermission("quotes", "view") },
   ].filter((s) => s.perm);
 
   if (isLoading) return <PageLoader text="Cargando dashboard…" />;
@@ -73,9 +73,9 @@ const DashboardPage = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-center">
+        <h1 className="text-2xl font-semibold tracking-tight text-center">
           Bienvenido, {user?.name}
         </h1>
         <p className="text-center text-sm text-muted-foreground mt-1">Panel de control</p>
@@ -84,13 +84,15 @@ const DashboardPage = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((s) => (
           <Card key={s.label}
-            className="cursor-pointer hover:shadow-md transition-shadow"
+            className="cursor-pointer group hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 border-transparent hover:border-primary/20"
             onClick={() => navigate(s.to)}
           >
-            <CardContent className="flex items-center gap-3 p-4">
-              <s.icon className={cn("h-8 w-8", s.color)} />
+            <CardContent className="flex items-center gap-4 p-5">
+              <div className={cn("flex h-11 w-11 items-center justify-center rounded-xl", s.bg)}>
+                <s.icon className={cn("h-5 w-5", s.color)} />
+              </div>
               <div>
-                <p className="text-2xl font-bold">{s.value}</p>
+                <p className="text-2xl font-semibold">{s.value}</p>
                 <p className="text-xs text-muted-foreground">{s.label}</p>
               </div>
             </CardContent>
@@ -101,26 +103,29 @@ const DashboardPage = () => {
       {hasPermission("tasks", "view") && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-lg">Avisos de hoy</CardTitle>
+            <CardTitle className="text-lg font-semibold">Avisos de hoy</CardTitle>
             <button onClick={() => navigate("/tasks")} className="text-sm text-primary hover:underline inline-flex items-center gap-1">
               Ver todos <ArrowRight className="h-3 w-3" />
             </button>
           </CardHeader>
           <CardContent>
             {todayTasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">No hay avisos para hoy</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">No hay avisos para hoy</p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {todayTasks.map((t) => (
                   <div key={t._id}
-                    className="flex items-center justify-between rounded-lg border border-border p-3 hover:bg-muted/30 cursor-pointer transition-colors"
+                    className="flex items-center justify-between rounded-xl border border-border/60 p-4 hover:bg-muted/40 cursor-pointer transition-colors"
                     onClick={() => navigate(`/tasks/${t._id}`)}
                   >
                     <div className="min-w-0 flex-1">
                       <p className="font-medium truncate">{t.title}</p>
-                      {t.client && <p className="text-xs text-muted-foreground">{t.client.name}</p>}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {(t as any).assignedTo?.name && <p className="text-xs text-muted-foreground">{(t as any).assignedTo.name}</p>}
+                        {t.client && <p className="text-xs text-muted-foreground">• {t.client.name}</p>}
+                      </div>
                     </div>
-                    <Badge className={cn("ml-2 text-xs", statusColor[t.status])}>
+                    <Badge className={cn("ml-2 text-xs shrink-0", statusColor[t.status])}>
                       {statusLabel[t.status] || t.status}
                     </Badge>
                   </div>

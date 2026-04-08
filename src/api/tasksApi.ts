@@ -6,6 +6,8 @@ export interface Task {
   description?: string;
   client?: { _id: string; name: string };
   clientId?: string;
+  assignedTo?: { _id: string; name: string };
+  assignedToId?: string;
   status: "pending" | "in_progress" | "completed";
   date?: string;
   address?: string;
@@ -19,6 +21,7 @@ export interface TaskPayload {
   title: string;
   description?: string;
   clientId?: string;
+  assignedTo?: string;
   status?: string;
   date?: string;
   address?: string;
