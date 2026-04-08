@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tasksApi, TaskPayload } from "@/api/tasksApi";
 import { clientsApi } from "@/api/clientsApi";
+import { employeesApi } from "@/api/employeesApi";
 import { PageHeader } from "@/components/common/PageHeader";
 import { PageLoader } from "@/components/common/PageLoader";
 import { IfPermission } from "@/components/common/IfPermission";
@@ -31,6 +32,9 @@ const TaskDetailPage = () => {
   });
 
   const { data: clients = [] } = useQuery({ queryKey: ["clients"], queryFn: () => clientsApi.list() });
+  const { data: employees = [] } = useQuery({ queryKey: ["employees"], queryFn: () => employeesApi.list() });
+
+  const assignableEmployees = employees.filter((e) => ["owner", "admin", "worker"].includes(e.role) && e.isActive);
 
   const updateMut = useMutation({
     mutationFn: (p: Partial<TaskPayload>) => tasksApi.update(id!, p),
@@ -72,7 +76,14 @@ const TaskDetailPage = () => {
             )}
             <IfPermission module="tasks" action="edit">
               <Button variant="outline" onClick={() => {
-                setForm({ title: task.title, description: task.description, clientId: task.clientId || task.client?._id, date: task.date?.slice(0, 10), address: task.address });
+                setForm({
+                  title: task.title,
+                  description: task.description,
+                  assignedTo: task.assignedToId || (task.assignedTo as any)?._id || "",
+                  clientId: task.clientId || task.client?._id || "",
+                  date: task.date?.slice(0, 10),
+                  address: task.address,
+                });
                 setEditing(true);
               }}>
                 Editar
@@ -87,6 +98,7 @@ const TaskDetailPage = () => {
           <CardHeader><CardTitle>Detalles</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div><span className="text-muted-foreground">Estado:</span> <Badge className={cn("ml-1 text-xs", statusColor[task.status])}>{statusLabel[task.status]}</Badge></div>
+            {(task.assignedTo as any)?.name && <div><span className="text-muted-foreground">Asignado a:</span> <span className="ml-1 font-medium">{(task.assignedTo as any).name}</span></div>}
             {task.client && <div><span className="text-muted-foreground">Cliente:</span> <button onClick={() => navigate(`/clients/${task.client!._id}`)} className="ml-1 text-primary hover:underline">{task.client.name}</button></div>}
             {task.description && <div><span className="text-muted-foreground">Descripción:</span> <span className="ml-1">{task.description}</span></div>}
             {task.address && <div><span className="text-muted-foreground">Dirección:</span> <span className="ml-1">{task.address}</span></div>}
@@ -127,15 +139,31 @@ const TaskDetailPage = () => {
             <div className="space-y-2"><Label>Título *</Label><Input maxLength={150} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
             <div className="space-y-2"><Label>Descripción</Label><Input maxLength={150} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
             <div className="space-y-2">
-              <Label>Cliente</Label>
-              <Select value={form.clientId} onValueChange={(v) => setForm({ ...form, clientId: v })}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                <SelectContent>{clients.map((c) => <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>)}</SelectContent>
+              <Label>Asignar a *</Label>
+              <Select value={form.assignedTo} onValueChange={(v) => setForm({ ...form, assignedTo: v })}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar empleado" /></SelectTrigger>
+                <SelectContent>
+                  {assignableEmployees.map((e) => (
+                    <SelectItem key={e._id} value={e._id}>
+                      {e.name} <span className="text-muted-foreground ml-1 text-xs">({e.role})</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Cliente <span className="text-muted-foreground text-xs">(opcional)</span></Label>
+              <Select value={form.clientId || "__none__"} onValueChange={(v) => setForm({ ...form, clientId: v === "__none__" ? "" : v })}>
+                <SelectTrigger><SelectValue placeholder="Sin cliente" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sin cliente</SelectItem>
+                  {clients.map((c) => <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>)}
+                </SelectContent>
               </Select>
             </div>
             <div className="space-y-2"><Label>Fecha</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
             <div className="space-y-2"><Label>Dirección</Label><Input maxLength={150} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
-            <Button type="submit" className="w-full" disabled={!form.title?.trim() || updateMut.isPending}>
+            <Button type="submit" className="w-full" disabled={!form.title?.trim() || !form.assignedTo || updateMut.isPending}>
               {updateMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Guardar
             </Button>
           </form>

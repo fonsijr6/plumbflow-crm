@@ -16,7 +16,7 @@ export interface ProductPayload {
   category?: string;
   unit?: string;
   price: number;
-  stock: number;
+  initialStock?: number;
   description?: string;
 }
 
