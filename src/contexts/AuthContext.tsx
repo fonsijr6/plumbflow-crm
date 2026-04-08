@@ -77,10 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const refreshData = await authApi.refresh();
         setAccessToken(refreshData.token);
         await loadUser();
-      } catch {
-        setAccessToken(null);
-        setUser(null);
-      } finally {
+      } catch { /* empty */ } finally {
         setIsLoading(false);
       }
     };
