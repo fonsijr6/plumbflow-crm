@@ -7,11 +7,13 @@ export interface UserPermissions {
 }
 
 export interface AuthUser {
-  id: string;
+  _id: string;
+  id?: string; // legacy alias
   name: string;
   email: string;
   role: string;
   companyId: string;
+  isActive?: boolean;
   mustChangePassword?: boolean;
   permissions: UserPermissions;
 }
@@ -33,13 +35,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const loadUser = useCallback(async () => {
     try {
-      const me = await authApi.me();
+      const me: any = await authApi.me();
       setUser({
-        id: me.id,
+        _id: me._id || me.id,
+        id: me._id || me.id,
         name: me.name,
         email: me.email,
         role: me.role,
         companyId: me.companyId,
+        isActive: me.isActive,
         mustChangePassword: me.mustChangePassword,
         permissions: me.permissions || {},
       });
@@ -51,15 +55,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     const data = await authApi.login({ email, password });
+    const u: any = data.user;
     setAccessToken(data.token);
     setUser({
-      id: data.user.id,
-      name: data.user.name,
-      email: data.user.email,
-      role: data.user.role,
-      companyId: data.user.companyId,
-      mustChangePassword: data.user.mustChangePassword,
-      permissions: data.user.permissions || {},
+      _id: u._id || u.id,
+      id: u._id || u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      companyId: u.companyId,
+      isActive: u.isActive,
+      mustChangePassword: u.mustChangePassword,
+      permissions: u.permissions || {},
     });
   };
 

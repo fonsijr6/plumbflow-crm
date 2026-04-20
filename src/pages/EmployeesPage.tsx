@@ -14,14 +14,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Loader2, Shield } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
-const MODULES = ["clients", "tasks", "invoices", "quotes", "products"];
+const MODULES = ["clients", "tasks", "invoices", "quotes", "products", "stock"];
+const ALL_ACTIONS = ["view", "create", "edit", "assign", "complete", "delete"];
 const MODULE_ACTIONS: Record<string, string[]> = {
   clients: ["view", "create", "edit", "delete"],
   tasks: ["view", "create", "edit", "assign", "complete", "delete"],
   invoices: ["view", "create", "edit", "delete"],
-  quotes: ["view", "create", "edit", "delete"],
+  quotes: ["view", "create", "edit", "delete", "convert"],
   products: ["view", "create", "edit", "delete"],
+  stock: ["view", "edit"],
 };
 
 const EmployeesPage = () => {
