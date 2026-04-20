@@ -96,8 +96,8 @@ const ProductsPage = () => {
           ) },
           { key: "category", header: "Categoría", className: "hidden sm:table-cell", render: (r: any) => r.category || "—" },
           { key: "unit", header: "Unidad", className: "hidden sm:table-cell", render: (r: any) => r.unit || "—" },
-          { key: "unitPrice", header: "Precio", render: (r: any) => ((r.unitPrice ?? r.price) as number)?.toLocaleString("es-ES", { style: "currency", currency: "EUR" }) },
-          { key: "stock", header: "Stock", render: (r: any) => r.type === "service" ? "—" : (r.stock as number)?.toLocaleString("es-ES") ?? "0" },
+          { key: "unitPrice", header: "Precio", render: (r: any) => (r.unitPrice as number)?.toLocaleString("es-ES", { style: "currency", currency: "EUR" }) },
+          { key: "taxRate", header: "IVA", className: "hidden md:table-cell", render: (r: any) => r.taxRate != null ? `${r.taxRate}%` : "—" },
           {
             key: "actions", header: "", className: "w-10",
             render: (row: any) => (
