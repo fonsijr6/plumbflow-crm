@@ -1,10 +1,19 @@
 import api from "./axiosClient";
 
+export type InvoiceStatus = "draft" | "sent" | "paid" | "cancelled";
+
 export interface InvoiceLine {
-  description: string;
+  productId: string;
+  name?: string;
+  unit?: string;
+  unitPrice: number;
+  taxRate: number;
+  productType?: "material" | "service";
   quantity: number;
-  price: number;
-  iva: number;
+  // legacy compat
+  description?: string;
+  price?: number;
+  iva?: number;
 }
 
 export interface Invoice {
@@ -12,8 +21,9 @@ export interface Invoice {
   number?: number;
   client?: { _id: string; name: string };
   clientId?: string;
-  lines: InvoiceLine[];
-  status: "draft" | "sent" | "paid";
+  items: InvoiceLine[];
+  lines?: InvoiceLine[]; // legacy
+  status: InvoiceStatus;
   notes?: string;
   subtotal: number;
   taxTotal: number;
@@ -24,9 +34,9 @@ export interface Invoice {
 
 export interface InvoicePayload {
   clientId: string;
-  lines: InvoiceLine[];
+  items: Array<{ productId: string; quantity: number }>;
   notes?: string;
-  status?: string;
+  status?: InvoiceStatus;
 }
 
 export const invoicesApi = {
@@ -42,6 +52,6 @@ export const invoicesApi = {
   update: (id: string, payload: Partial<InvoicePayload>) =>
     api.put<Invoice>(`/company/invoices/${id}`, payload).then((r) => r.data),
 
-  delete: (id: string) =>
-    api.delete(`/company/invoices/${id}`),
+  setStatus: (id: string, status: InvoiceStatus) =>
+    api.put<Invoice>(`/company/invoices/${id}`, { status }).then((r) => r.data),
 };

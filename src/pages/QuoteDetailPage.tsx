@@ -1,20 +1,21 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { quotesApi, QuotePayload, QuoteLine } from "@/api/quotesApi";
+import { quotesApi, QuotePayload, QuoteStatus } from "@/api/quotesApi";
 import { clientsApi } from "@/api/clientsApi";
+import { productsApi } from "@/api/productsApi";
 import { IfPermission } from "@/components/common/IfPermission";
 import { PageHeader } from "@/components/common/PageHeader";
 import { PageLoader } from "@/components/common/PageLoader";
+import { LineItemsEditor, LineItem } from "@/components/common/LineItemsEditor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -23,52 +24,100 @@ const QuoteDetailPage = () => {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<QuotePayload>({ clientId: "", lines: [], notes: "" });
+  const [items, setItems] = useState<LineItem[]>([]);
+  const [form, setForm] = useState<{ clientId: string; notes: string }>({ clientId: "", notes: "" });
 
   const { data: quote, isLoading } = useQuery({ queryKey: ["quote", id], queryFn: () => quotesApi.get(id!), enabled: !!id });
   const { data: clients = [] } = useQuery({ queryKey: ["clients"], queryFn: () => clientsApi.list() });
+  const { data: products = [] } = useQuery({ queryKey: ["products"], queryFn: () => productsApi.list() });
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["quote", id] });
+    qc.invalidateQueries({ queryKey: ["quotes"] });
+  };
 
   const updateMut = useMutation({
     mutationFn: (p: Partial<QuotePayload>) => quotesApi.update(id!, p),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["quote", id] }); qc.invalidateQueries({ queryKey: ["quotes"] }); setEditing(false); toast.success("Presupuesto actualizado"); },
+    onSuccess: () => { invalidate(); setEditing(false); toast.success("Presupuesto actualizado"); },
   });
 
-  const emptyLine: QuoteLine = { description: "", quantity: 1, price: 0, iva: 21 };
-  const addLine = () => setForm({ ...form, lines: [...form.lines, { ...emptyLine }] });
-  const removeLine = (idx: number) => setForm({ ...form, lines: form.lines.filter((_, i) => i !== idx) });
-  const updateLine = (idx: number, field: keyof QuoteLine, value: string | number) => {
-    const lines = [...form.lines];
-    lines[idx] = { ...lines[idx], [field]: value };
-    setForm({ ...form, lines });
-  };
+  const statusMut = useMutation({
+    mutationFn: (status: QuoteStatus) => quotesApi.setStatus(id!, status),
+    onSuccess: () => { invalidate(); toast.success("Estado actualizado"); },
+  });
 
-  const statusColor: Record<string, string> = { pending: "bg-warning/10 text-warning", accepted: "bg-success/10 text-success", rejected: "bg-destructive/10 text-destructive" };
-  const statusLabel: Record<string, string> = { pending: "Pendiente", accepted: "Aceptado", rejected: "Rechazado" };
+  const convertMut = useMutation({
+    mutationFn: () => quotesApi.convert(id!),
+    onSuccess: (data) => {
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      toast.success("Presupuesto convertido a factura");
+      if (data?.invoiceId) navigate(`/invoices/${data.invoiceId}`);
+    },
+  });
+
+  const statusColor: Record<string, string> = {
+    draft: "bg-muted text-muted-foreground",
+    accepted: "bg-success/10 text-success",
+    rejected: "bg-destructive/10 text-destructive",
+    converted: "bg-primary/10 text-primary",
+  };
+  const statusLabel: Record<string, string> = { draft: "Borrador", accepted: "Aceptado", rejected: "Rechazado", converted: "Convertido" };
 
   if (isLoading || !quote) return <PageLoader />;
 
+  const lines = quote.items || quote.lines || [];
+  const isDraft = quote.status === "draft";
+  const isAccepted = quote.status === "accepted";
+
   const openEdit = () => {
-    setForm({ clientId: quote.clientId || quote.client?._id || "", lines: [...quote.lines], notes: quote.notes || "" });
+    setForm({ clientId: quote.clientId || quote.client?._id || "", notes: quote.notes || "" });
+    setItems(lines.map((l) => ({
+      productId: l.productId,
+      quantity: l.quantity,
+      name: l.name,
+      unit: l.unit,
+      unitPrice: l.unitPrice,
+      taxRate: l.taxRate,
+      productType: l.productType,
+    })));
     setEditing(true);
+  };
+
+  const submitEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateMut.mutate({
+      clientId: form.clientId,
+      notes: form.notes,
+      items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+    });
   };
 
   return (
     <div>
       <PageHeader title={`Presupuesto #${quote.number || ""}`} backTo="/quotes" backLabel="Volver a presupuestos"
         actions={
-          <div className="flex gap-2">
-            {quote.status === "pending" && (
+          <div className="flex gap-2 flex-wrap">
+            {isDraft && (
               <>
                 <IfPermission module="quotes" action="edit">
-                  <Button onClick={() => updateMut.mutate({ status: "accepted" })} disabled={updateMut.isPending} className="bg-success hover:bg-success/90 text-success-foreground">Aceptar</Button>
+                  <Button onClick={() => statusMut.mutate("accepted")} disabled={statusMut.isPending} className="bg-success hover:bg-success/90 text-success-foreground">Aceptar</Button>
                 </IfPermission>
                 <IfPermission module="quotes" action="edit">
-                  <Button variant="destructive" onClick={() => updateMut.mutate({ status: "rejected" })} disabled={updateMut.isPending}>Rechazar</Button>
+                  <Button variant="destructive" onClick={() => statusMut.mutate("rejected")} disabled={statusMut.isPending}>Rechazar</Button>
                 </IfPermission>
                 <IfPermission module="quotes" action="edit">
                   <Button variant="outline" onClick={openEdit}>Editar</Button>
                 </IfPermission>
               </>
+            )}
+            {isAccepted && (
+              <IfPermission module="quotes" action="convert">
+                <Button onClick={() => convertMut.mutate()} disabled={convertMut.isPending}>
+                  {convertMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                  Convertir a factura
+                </Button>
+              </IfPermission>
             )}
           </div>
         }
@@ -81,6 +130,11 @@ const QuoteDetailPage = () => {
             <div><span className="text-muted-foreground">Estado:</span> <Badge className={cn("ml-1 text-xs", statusColor[quote.status])}>{statusLabel[quote.status]}</Badge></div>
             {quote.client && <div><span className="text-muted-foreground">Cliente:</span> <button onClick={() => navigate(`/clients/${quote.client!._id}`)} className="ml-1 text-primary hover:underline">{quote.client.name}</button></div>}
             {quote.notes && <div><span className="text-muted-foreground">Notas:</span> <span className="ml-1">{quote.notes}</span></div>}
+            {quote.convertedInvoiceId && (
+              <div><span className="text-muted-foreground">Factura:</span>
+                <button onClick={() => navigate(`/invoices/${quote.convertedInvoiceId}`)} className="ml-1 text-primary hover:underline">Ver factura generada</button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -89,16 +143,17 @@ const QuoteDetailPage = () => {
           <CardContent>
             <div className="overflow-auto">
               <table className="w-full text-sm">
-                <thead><tr className="border-b text-left text-muted-foreground"><th className="pb-2">Descripción</th><th className="pb-2">Cant.</th><th className="pb-2">Precio</th><th className="pb-2">IVA</th><th className="pb-2 text-right">Total</th></tr></thead>
+                <thead><tr className="border-b text-left text-muted-foreground"><th className="pb-2">Concepto</th><th className="pb-2">Cant.</th><th className="pb-2">Precio</th><th className="pb-2">IVA</th><th className="pb-2 text-right">Total</th></tr></thead>
                 <tbody>
-                  {quote.lines.map((l, i) => {
-                    const lineTotal = l.quantity * l.price * (1 + l.iva / 100);
+                  {lines.map((l, i) => {
+                    const lt = (l.quantity || 0) * (l.unitPrice ?? 0) * (1 + (l.taxRate ?? 0) / 100);
                     return (
                       <tr key={i} className="border-b last:border-0">
-                        <td className="py-2">{l.description}</td><td className="py-2">{l.quantity}</td>
-                        <td className="py-2">{l.price.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</td>
-                        <td className="py-2">{l.iva}%</td>
-                        <td className="py-2 text-right">{lineTotal.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</td>
+                        <td className="py-2">{l.name || "—"}{l.productType === "service" && <span className="text-xs text-muted-foreground ml-1">(srv)</span>}</td>
+                        <td className="py-2">{l.quantity}{l.unit ? ` ${l.unit}` : ""}</td>
+                        <td className="py-2">{(l.unitPrice ?? 0).toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</td>
+                        <td className="py-2">{l.taxRate ?? 0}%</td>
+                        <td className="py-2 text-right">{lt.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</td>
                       </tr>
                     );
                   })}
@@ -116,8 +171,8 @@ const QuoteDetailPage = () => {
 
       <Dialog open={editing} onOpenChange={setEditing}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Editar presupuesto</DialogTitle></DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); updateMut.mutate(form); }} className="space-y-4">
+          <DialogHeader><DialogTitle>Editar presupuesto (borrador)</DialogTitle></DialogHeader>
+          <form onSubmit={submitEdit} className="space-y-4">
             <div className="space-y-2">
               <Label>Cliente</Label>
               <Select value={form.clientId} onValueChange={(v) => setForm({ ...form, clientId: v })}>
@@ -125,20 +180,13 @@ const QuoteDetailPage = () => {
                 <SelectContent>{clients.map((c) => <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between"><Label>Conceptos</Label><Button type="button" variant="outline" size="sm" onClick={addLine}><Plus className="h-3 w-3" /> Línea</Button></div>
-              {form.lines.map((line, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-12 sm:col-span-4 space-y-1"><Label className="text-xs">Descripción</Label><Input maxLength={150} value={line.description} onChange={(e) => updateLine(idx, "description", e.target.value)} /></div>
-                  <div className="col-span-4 sm:col-span-2 space-y-1"><Label className="text-xs">Cant.</Label><Input type="number" min={0} max={10000} value={line.quantity || ""} onChange={(e) => updateLine(idx, "quantity", +e.target.value)} /></div>
-                  <div className="col-span-4 sm:col-span-2 space-y-1"><Label className="text-xs">Precio</Label><Input type="number" min={0} max={1000000} step="0.01" value={line.price || ""} onChange={(e) => updateLine(idx, "price", +e.target.value)} /></div>
-                  <div className="col-span-3 sm:col-span-2 space-y-1"><Label className="text-xs">IVA %</Label><Input type="number" min={0} max={100} value={line.iva || ""} onChange={(e) => updateLine(idx, "iva", +e.target.value)} /></div>
-                  <div className="col-span-1 sm:col-span-2">{form.lines.length > 1 && <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeLine(idx)}><Trash2 className="h-3.5 w-3.5" /></Button>}</div>
-                </div>
-              ))}
+            <LineItemsEditor items={items} products={products} onChange={setItems} />
+            <div className="space-y-2">
+              <Label>Notas</Label>
+              <Textarea maxLength={1500} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
-            <div className="space-y-2"><Label>Notas</Label><Textarea maxLength={1500} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-            <Button type="submit" className="w-full" disabled={updateMut.isPending}>
+            <Button type="submit" className="w-full"
+              disabled={!form.clientId || items.length === 0 || items.some((i) => !i.productId || !i.quantity) || updateMut.isPending}>
               {updateMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Guardar
             </Button>
           </form>
