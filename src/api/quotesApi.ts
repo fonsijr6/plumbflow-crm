@@ -1,10 +1,19 @@
 import api from "./axiosClient";
 
+export type QuoteStatus = "draft" | "accepted" | "rejected" | "converted";
+
 export interface QuoteLine {
-  description: string;
+  productId: string;
+  name?: string;
+  unit?: string;
+  unitPrice: number;
+  taxRate: number;
+  productType?: "material" | "service";
   quantity: number;
-  price: number;
-  iva: number;
+  // legacy compat
+  description?: string;
+  price?: number;
+  iva?: number;
 }
 
 export interface Quote {
@@ -12,21 +21,23 @@ export interface Quote {
   number?: number;
   client?: { _id: string; name: string };
   clientId?: string;
-  lines: QuoteLine[];
-  status: "pending" | "accepted" | "rejected";
+  items: QuoteLine[];
+  lines?: QuoteLine[]; // legacy
+  status: QuoteStatus;
   notes?: string;
   subtotal: number;
   taxTotal: number;
   total: number;
+  convertedInvoiceId?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface QuotePayload {
   clientId: string;
-  lines: QuoteLine[];
+  items: Array<{ productId: string; quantity: number }>;
   notes?: string;
-  status?: string;
+  status?: QuoteStatus;
 }
 
 export const quotesApi = {
@@ -42,6 +53,9 @@ export const quotesApi = {
   update: (id: string, payload: Partial<QuotePayload>) =>
     api.put<Quote>(`/company/quotes/${id}`, payload).then((r) => r.data),
 
-  delete: (id: string) =>
-    api.delete(`/company/quotes/${id}`),
+  setStatus: (id: string, status: QuoteStatus) =>
+    api.put<Quote>(`/company/quotes/${id}`, { status }).then((r) => r.data),
+
+  convert: (id: string) =>
+    api.post<{ invoiceId: string }>(`/company/quotes/${id}/convert`).then((r) => r.data),
 };
