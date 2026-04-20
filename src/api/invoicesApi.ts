@@ -4,25 +4,21 @@ export type InvoiceStatus = "draft" | "sent" | "paid" | "cancelled";
 
 export interface InvoiceLine {
   productId: string;
-  name?: string;
-  unit?: string;
+  name: string;
+  description?: string;
+  productType: "material" | "service";
+  unit: string;
+  quantity: number;
   unitPrice: number;
   taxRate: number;
-  productType?: "material" | "service";
-  quantity: number;
-  // legacy compat
-  description?: string;
-  price?: number;
-  iva?: number;
+  total: number;
 }
 
 export interface Invoice {
   _id: string;
-  number?: number;
-  client?: { _id: string; name: string };
-  clientId?: string;
+  invoiceNumber: string;
+  clientId: string;
   items: InvoiceLine[];
-  lines?: InvoiceLine[]; // legacy
   status: InvoiceStatus;
   notes?: string;
   subtotal: number;
@@ -34,14 +30,12 @@ export interface Invoice {
 
 export interface InvoicePayload {
   clientId: string;
-  items: Array<{ productId: string; quantity: number }>;
+  items: InvoiceLine[];
   notes?: string;
-  status?: InvoiceStatus;
 }
 
 export const invoicesApi = {
-  list: (params?: Record<string, string>) =>
-    api.get<Invoice[]>("/company/invoices", { params }).then((r) => r.data),
+  list: () => api.get<Invoice[]>("/company/invoices").then((r) => r.data),
 
   get: (id: string) =>
     api.get<Invoice>(`/company/invoices/${id}`).then((r) => r.data),
@@ -53,5 +47,7 @@ export const invoicesApi = {
     api.put<Invoice>(`/company/invoices/${id}`, payload).then((r) => r.data),
 
   setStatus: (id: string, status: InvoiceStatus) =>
-    api.put<Invoice>(`/company/invoices/${id}`, { status }).then((r) => r.data),
+    api
+      .put<Invoice>(`/company/invoices/${id}/status`, { status })
+      .then((r) => r.data),
 };

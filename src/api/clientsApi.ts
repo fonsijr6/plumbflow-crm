@@ -8,6 +8,7 @@ export interface Client {
   address?: string;
   nif?: string;
   notes?: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -22,18 +23,21 @@ export interface ClientPayload {
 }
 
 export const clientsApi = {
-  list: (params?: Record<string, string>) =>
-    api.get<Client[]>("/company/clients", { params }).then((r) => r.data),
+  // ✅ Listar clientes (puedes filtrar activos en el backend o frontend)
+  list: () => api.get<Client[]>("/company/clients").then((r) => r.data),
 
+  // ✅ Obtener cliente por ID
   get: (id: string) =>
     api.get<Client>(`/company/clients/${id}`).then((r) => r.data),
 
+  // ✅ Crear cliente
   create: (payload: ClientPayload) =>
     api.post<Client>("/company/clients", payload).then((r) => r.data),
 
+  // ✅ Actualizar cliente
   update: (id: string, payload: Partial<ClientPayload>) =>
     api.put<Client>(`/company/clients/${id}`, payload).then((r) => r.data),
 
-  delete: (id: string) =>
-    api.delete(`/company/clients/${id}`),
+  // ✅ Eliminar cliente (DELETE real, solo owner – usar SIEMPRE con modal)
+  delete: (id: string) => api.delete(`/company/clients/${id}`),
 };

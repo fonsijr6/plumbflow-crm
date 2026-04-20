@@ -1,34 +1,41 @@
 import api from "./axiosClient";
 
+// ✅ Representa EXACTAMENTE el Stock del backend
 export interface StockItem {
   _id: string;
-  productId?: string;
-  product?: { _id: string; name: string; type?: "material" | "service"; unit?: string };
+  productId: {
+    _id: string;
+    name: string;
+    type: "material";
+    unit: string;
+  };
   quantity: number;
-  minStock?: number;
-  location?: string;
-  notes?: string;
+  minStock: number;
+  lastMovementNote?: string;
+  lastMovementAt?: string;
   createdAt: string;
   updatedAt: string;
 }
 
+// ✅ Ajuste manual (delta)
 export interface StockAdjustment {
-  productId: string;
-  quantity: number; // delta o valor según backend; aquí es ajuste manual
-  reason?: string;
+  stockId: string;
+  amount: number; // positivo o negativo
 }
 
 export const stockApi = {
-  list: (params?: Record<string, string>) =>
-    api.get<StockItem[]>("/company/stock", { params }).then((r) => r.data),
+  // ✅ Inventario completo
+  list: () => api.get<StockItem[]>("/company/stock").then((r) => r.data),
 
-  get: (id: string) =>
-    api.get<StockItem>(`/company/stock/${id}`).then((r) => r.data),
+  // ✅ Stock de un producto concreto
+  getByProduct: (productId: string) =>
+    api
+      .get<StockItem>(`/company/stock/product/${productId}`)
+      .then((r) => r.data),
 
-  // Ajuste manual (solo owner/admin). El backend gestiona la lógica.
-  update: (id: string, payload: { quantity?: number; minStock?: number; location?: string; notes?: string }) =>
-    api.put<StockItem>(`/company/stock/${id}`, payload).then((r) => r.data),
-
-  adjust: (payload: StockAdjustment) =>
-    api.post("/company/stock/adjust", payload),
+  // ✅ Ajuste manual de stock (SOLO owner/admin)
+  adjust: ({ stockId, amount }: StockAdjustment) =>
+    api
+      .put<StockItem>(`/company/stock/${stockId}/adjust`, { amount })
+      .then((r) => r.data),
 };

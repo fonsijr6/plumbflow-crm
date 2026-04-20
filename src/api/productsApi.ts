@@ -1,51 +1,58 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import api from "./axiosClient";
 
 export type ProductType = "material" | "service";
 
+// ✅ Representa EXACTAMENTE el Product del backend
 export interface Product {
   _id: string;
   name: string;
   type: ProductType;
-  category?: string;
-  unit?: string;
+  unit: string;
   unitPrice: number;
-  taxRate?: number;
-  isActive?: boolean;
-  // legacy/derived fields some endpoints may still expose
-  price?: number;
-  stock?: number;
+  taxRate: number;
   description?: string;
+  isActive: boolean;
   createdAt: string;
 }
 
+// ✅ Payload para crear / editar productos
 export interface ProductPayload {
   name: string;
   type: ProductType;
-  category?: string;
-  unit?: string;
+  unit: string;
   unitPrice: number;
   taxRate?: number;
-  initialStock?: number;
   description?: string;
+
+  // ✅ SOLO para materiales
+  initialStock?: number;
 }
 
 export const productsApi = {
-  list: (params?: Record<string, string>) =>
-    api.get<Product[]>("/company/products", { params }).then((r) => r.data),
+  // ✅ Listar productos activos
+  list: () => api.get<Product[]>("/company/products").then((r) => r.data),
 
+  // ✅ Obtener producto por ID
   get: (id: string) =>
     api.get<Product>(`/company/products/${id}`).then((r) => r.data),
 
+  // ✅ Crear producto
   create: (payload: ProductPayload) => {
-    // Solo enviar initialStock si es material
     const body: any = { ...payload };
-    if (body.type !== "material") delete body.initialStock;
+
+    // 🔥 Solo enviar stock inicial si es material
+    if (body.type !== "material") {
+      delete body.initialStock;
+    }
+
     return api.post<Product>("/company/products", body).then((r) => r.data);
   },
 
+  // ✅ Actualizar producto (NO cambia tipo)
   update: (id: string, payload: Partial<ProductPayload>) =>
     api.put<Product>(`/company/products/${id}`, payload).then((r) => r.data),
 
-  delete: (id: string) =>
-    api.delete(`/company/products/${id}`),
+  // ✅ Desactivar producto (NO borrar)
+  deactivate: (id: string) => api.put(`/company/products/${id}/deactivate`),
 };
