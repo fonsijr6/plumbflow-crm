@@ -14,18 +14,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Loader2, Shield } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
-const MODULES = ["clients", "tasks", "invoices", "quotes", "products"];
+const MODULES = ["clients", "tasks", "invoices", "quotes", "products", "stock"];
+const ALL_ACTIONS = ["view", "create", "edit", "assign", "complete", "delete"];
 const MODULE_ACTIONS: Record<string, string[]> = {
   clients: ["view", "create", "edit", "delete"],
   tasks: ["view", "create", "edit", "assign", "complete", "delete"],
   invoices: ["view", "create", "edit", "delete"],
-  quotes: ["view", "create", "edit", "delete"],
+  quotes: ["view", "create", "edit", "delete", "convert"],
   products: ["view", "create", "edit", "delete"],
+  stock: ["view", "edit"],
 };
 
 const EmployeesPage = () => {
   const qc = useQueryClient();
+  const { user: currentUser } = useAuth();
   const [modal, setModal] = useState(false);
   const [editModal, setEditModal] = useState<string | null>(null);
   const [permModal, setPermModal] = useState<string | null>(null);
@@ -86,10 +90,12 @@ const EmployeesPage = () => {
                 <Button variant="ghost" size="sm" className="h-8 px-2" onClick={(e: React.MouseEvent) => { e.stopPropagation(); setPerms(row.permissions || {}); setPermModal(row._id); }}>
                   <Shield className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="ghost" size="sm" className="text-destructive h-8 px-2"
-                  onClick={(e: React.MouseEvent) => { e.stopPropagation(); setDeleteId(row._id); }}>
-                  Eliminar
-                </Button>
+                {row._id !== currentUser?._id && (
+                  <Button variant="ghost" size="sm" className="text-destructive h-8 px-2"
+                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); setDeleteId(row._id); }}>
+                    Eliminar
+                  </Button>
+                )}
               </div>
             ),
           },
@@ -159,7 +165,7 @@ const EmployeesPage = () => {
                 <thead>
                   <tr className="border-b text-left">
                     <th className="pb-2 font-medium">Módulo</th>
-                    {["view", "create", "edit", "assign", "complete", "delete"].map((a) => (
+                    {ALL_ACTIONS.concat("convert").filter((v, i, a) => a.indexOf(v) === i).map((a) => (
                       <th key={a} className="pb-2 font-medium capitalize text-center text-xs">{a}</th>
                     ))}
                   </tr>
@@ -170,7 +176,7 @@ const EmployeesPage = () => {
                     return (
                       <tr key={mod} className="border-b last:border-0">
                         <td className="py-2 capitalize">{mod}</td>
-                        {["view", "create", "edit", "assign", "complete", "delete"].map((act) => (
+                        {ALL_ACTIONS.concat("convert").filter((v, i, a) => a.indexOf(v) === i).map((act) => (
                           <td key={act} className="py-2 text-center">
                             {actions.includes(act) ? (
                               <Checkbox checked={!!perms[mod]?.[act]} onCheckedChange={() => togglePerm(mod, act)} />
