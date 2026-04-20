@@ -136,27 +136,48 @@ const InvoicesPage = () => {
     if (!form.clientId || items.length === 0) return;
     if (items.some((i) => !i.product || !i.quantity)) return;
 
+    // --- calcular líneas ---
+
+    const lines = items.map((i) => {
+      const unitPrice = i.product!.unitPrice;
+      const taxRate = i.product!.taxRate;
+      const quantity = i.quantity;
+
+      const lineSubtotal = quantity * unitPrice;
+      const lineTax = lineSubtotal * (taxRate / 100);
+      const lineTotal = lineSubtotal + lineTax;
+
+      return {
+        productId: i.product!._id,
+        name: i.product!.name,
+        productType: i.product!.type,
+        unit: i.product!.unit,
+        unitPrice,
+        taxRate,
+        quantity,
+        total: lineTotal,
+
+        // solo frontend
+        _subtotal: lineSubtotal,
+        _tax: lineTax,
+      };
+    });
+
+    // --- calcular totales de factura ---
+    const subtotal = lines.reduce((sum, l) => sum + l._subtotal, 0);
+
+    const taxTotal = lines.reduce((sum, l) => sum + l._tax, 0);
+
+    const total = subtotal + taxTotal;
+
+    // --- payload final (sin campos internos) ---
     const payload: InvoicePayload = {
       clientId: form.clientId,
       notes: form.notes,
-      items: items.map((i) => {
-        const unitPrice = i.product!.unitPrice;
-        const taxRate = i.product!.taxRate;
-        const quantity = i.quantity;
-
-        const total = quantity * unitPrice * (1 + taxRate / 100);
-
-        return {
-          productId: i.product!._id,
-          name: i.product!.name,
-          productType: i.product!.type,
-          unit: i.product!.unit,
-          unitPrice,
-          taxRate,
-          quantity,
-          total,
-        };
-      }),
+      items: lines.map(({ _subtotal, _tax, ...l }) => l),
+      subtotal,
+      taxTotal,
+      total,
     };
 
     createInvoiceMutation.mutate(payload);
@@ -205,7 +226,7 @@ const InvoicesPage = () => {
           {
             key: "number",
             header: "#",
-            render: (r: any) => `#${r.number || "—"}`,
+            render: (r: any) => `#${r.invoiceNumber || "—"}`,
           },
           {
             key: "client",

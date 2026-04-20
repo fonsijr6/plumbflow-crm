@@ -34,6 +34,9 @@ export interface InvoicePayload {
   clientId: string;
   items: InvoiceLine[];
   notes?: string;
+  subtotal: number;
+  taxTotal: number;
+  total: number;
 }
 
 export const invoicesApi = {
