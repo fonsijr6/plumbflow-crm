@@ -9,6 +9,7 @@ import { DataTable } from "@/components/common/DataTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Loader2 } from "lucide-react";
@@ -16,7 +17,10 @@ import { toast } from "sonner";
 
 const UNITS = ["unidad", "kg", "m", "litro", "hora"];
 
-const emptyProduct: ProductPayload = { name: "", category: "", unit: "", price: 0, initialStock: 0, description: "" };
+const emptyProduct: ProductPayload = {
+  name: "", type: "material", category: "", unit: "unidad",
+  unitPrice: 0, taxRate: 21, initialStock: 0, description: "",
+};
 
 const ProductsPage = () => {
   const qc = useQueryClient();
@@ -25,7 +29,6 @@ const ProductsPage = () => {
   const [form, setForm] = useState<ProductPayload>(emptyProduct);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // Category management
   const [catModal, setCatModal] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const [localCategories, setLocalCategories] = useState<string[]>([]);
@@ -34,8 +37,7 @@ const ProductsPage = () => {
 
   const categories = useMemo(() => {
     const fromProducts = products.map((p) => p.category).filter(Boolean) as string[];
-    const all = [...new Set([...fromProducts, ...localCategories])];
-    return all.sort((a, b) => a.localeCompare(b));
+    return [...new Set([...fromProducts, ...localCategories])].sort((a, b) => a.localeCompare(b));
   }, [products, localCategories]);
 
   const createMut = useMutation({
@@ -57,11 +59,8 @@ const ProductsPage = () => {
   const handleCreateCategory = () => {
     const trimmed = newCatName.trim();
     if (!trimmed) return;
-    if (categories.includes(trimmed)) {
-      toast.error("La categoría ya existe");
-      return;
-    }
-    setLocalCategories((prev) => [...prev, trimmed]);
+    if (categories.includes(trimmed)) { toast.error("La categoría ya existe"); return; }
+    setLocalCategories((p) => [...p, trimmed]);
     setForm({ ...form, category: trimmed });
     setNewCatName("");
     setCatModal(false);
@@ -77,7 +76,7 @@ const ProductsPage = () => {
       <PageHeader title="Productos" backTo="/dashboard" backLabel="Volver a inicio"
         actions={
           <IfPermission module="products" action="create">
-            <Button onClick={() => setModal(true)}><Plus className="h-4 w-4" /> Nuevo producto</Button>
+            <Button onClick={() => { setForm(emptyProduct); setModal(true); }}><Plus className="h-4 w-4" /> Nuevo producto</Button>
           </IfPermission>
         }
       />
@@ -90,10 +89,15 @@ const ProductsPage = () => {
       <DataTable
         columns={[
           { key: "name", header: "Nombre" },
+          { key: "type", header: "Tipo", render: (r: any) => (
+            <Badge variant={r.type === "material" ? "default" : "secondary"} className="text-xs">
+              {r.type === "material" ? "Material" : "Servicio"}
+            </Badge>
+          ) },
           { key: "category", header: "Categoría", className: "hidden sm:table-cell", render: (r: any) => r.category || "—" },
           { key: "unit", header: "Unidad", className: "hidden sm:table-cell", render: (r: any) => r.unit || "—" },
-          { key: "price", header: "Precio", render: (r: any) => (r.price as number)?.toLocaleString("es-ES", { style: "currency", currency: "EUR" }) },
-          { key: "stock", header: "Stock", render: (r: any) => (r.stock as number)?.toLocaleString("es-ES") ?? "0" },
+          { key: "unitPrice", header: "Precio", render: (r: any) => ((r.unitPrice ?? r.price) as number)?.toLocaleString("es-ES", { style: "currency", currency: "EUR" }) },
+          { key: "stock", header: "Stock", render: (r: any) => r.type === "service" ? "—" : (r.stock as number)?.toLocaleString("es-ES") ?? "0" },
           {
             key: "actions", header: "", className: "w-10",
             render: (row: any) => (
@@ -110,9 +114,8 @@ const ProductsPage = () => {
         emptyMessage="No hay productos"
       />
 
-      {/* Create product modal */}
       <Dialog open={modal} onOpenChange={setModal}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Nuevo producto</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); createMut.mutate(form); }} className="space-y-4">
             <div className="space-y-2">
@@ -120,7 +123,17 @@ const ProductsPage = () => {
               <Input maxLength={150} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
 
-            {/* Category selector */}
+            <div className="space-y-2">
+              <Label>Tipo *</Label>
+              <Select value={form.type} onValueChange={(v: "material" | "service") => setForm({ ...form, type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="material">Material (gestiona stock)</SelectItem>
+                  <SelectItem value="service">Servicio (sin stock)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label>Categoría</Label>
               <div className="flex gap-2">
@@ -137,44 +150,48 @@ const ProductsPage = () => {
               </div>
             </div>
 
-            {/* Unit selector */}
             <div className="space-y-2">
               <Label>Unidad</Label>
-              <Select value={form.unit || "__none__"} onValueChange={(v) => setForm({ ...form, unit: v === "__none__" ? "" : v })}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar unidad" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Sin unidad</SelectItem>
-                  {UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                </SelectContent>
+              <Select value={form.unit || "unidad"} onValueChange={(v) => setForm({ ...form, unit: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
               </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Precio</Label>
+                <Label>Precio unitario *</Label>
                 <Input type="number" min={0} max={1000000} step="0.01" placeholder="0,00"
-                  value={form.price || ""} onChange={(e) => setForm({ ...form, price: +e.target.value })} />
+                  value={form.unitPrice || ""} onChange={(e) => setForm({ ...form, unitPrice: +e.target.value })} />
               </div>
+              <div className="space-y-2">
+                <Label>IVA %</Label>
+                <Input type="number" min={0} max={100} step="0.01" placeholder="21"
+                  value={form.taxRate ?? ""} onChange={(e) => setForm({ ...form, taxRate: +e.target.value })} />
+              </div>
+            </div>
+
+            {form.type === "material" && (
               <div className="space-y-2">
                 <Label>Stock inicial</Label>
                 <Input type="number" min={0} max={1000000} placeholder="0"
                   value={form.initialStock || ""} onChange={(e) => setForm({ ...form, initialStock: +e.target.value })} />
+                <p className="text-xs text-muted-foreground">El stock se creará automáticamente al guardar.</p>
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
               <Label>Descripción</Label>
               <Input maxLength={150} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
 
-            <Button type="submit" className="w-full" disabled={!form.name.trim() || createMut.isPending}>
+            <Button type="submit" className="w-full" disabled={!form.name.trim() || !form.unitPrice || createMut.isPending}>
               {createMut.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Crear producto
             </Button>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* New category modal */}
       <Dialog open={catModal} onOpenChange={setCatModal}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Nueva categoría</DialogTitle></DialogHeader>
