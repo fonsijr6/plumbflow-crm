@@ -1,4 +1,5 @@
 import api from "./axiosClient";
+import { Client } from "./clientsApi";
 
 export type InvoiceStatus = "draft" | "sent" | "paid" | "cancelled";
 
@@ -18,6 +19,7 @@ export interface Invoice {
   _id: string;
   invoiceNumber: string;
   clientId: string;
+  client?: Client;
   items: InvoiceLine[];
   status: InvoiceStatus;
   notes?: string;
@@ -35,7 +37,8 @@ export interface InvoicePayload {
 }
 
 export const invoicesApi = {
-  list: () => api.get<Invoice[]>("/company/invoices").then((r) => r.data),
+  list: (p0: { clientId: string }) =>
+    api.get<Invoice[]>("/company/invoices").then((r) => r.data),
 
   get: (id: string) =>
     api.get<Invoice>(`/company/invoices/${id}`).then((r) => r.data),

@@ -1,4 +1,5 @@
 import api from "./axiosClient";
+import { Client } from "./clientsApi";
 
 export type QuoteStatus = "draft" | "accepted" | "rejected" | "converted";
 
@@ -18,6 +19,7 @@ export interface Quote {
   _id: string;
   quoteNumber: string;
   clientId: string;
+  client?: Client;
   items: QuoteLine[];
   status: QuoteStatus;
   notes?: string;

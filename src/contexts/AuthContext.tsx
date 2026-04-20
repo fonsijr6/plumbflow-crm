@@ -1,4 +1,13 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable no-empty */
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
 import { authApi } from "@/api/authApi";
 import { setAccessToken } from "@/api/axiosClient";
 
@@ -8,7 +17,6 @@ export interface UserPermissions {
 
 export interface AuthUser {
   _id: string;
-  id?: string; // legacy alias
   name: string;
   email: string;
   role: string;
@@ -25,6 +33,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  can: (module: string, action: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -33,12 +42,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ✅ Cargar usuario autenticado
   const loadUser = useCallback(async () => {
     try {
       const me: any = await authApi.me();
       setUser({
-        _id: me._id || me.id,
-        id: me._id || me.id,
+        _id: me._id ?? me.id,
         name: me.name,
         email: me.email,
         role: me.role,
@@ -53,13 +62,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+  // ✅ Login
   const login = async (email: string, password: string) => {
     const data = await authApi.login({ email, password });
-    const u: any = data.user;
     setAccessToken(data.token);
+
+    const u = data.user;
     setUser({
-      _id: u._id || u.id,
-      id: u._id || u.id,
+      _id: u._id,
       name: u.name,
       email: u.email,
       role: u.role,
@@ -70,31 +80,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  // ✅ Logout
   const logout = async () => {
     try {
       await authApi.logout();
-    } catch { /* ignore */ }
+    } catch {}
     setAccessToken(null);
     setUser(null);
   };
 
+  // ✅ Helper de permisos (clave para el frontend)
+  const can = useCallback(
+    (module: string, action: string) => {
+      if (!user) return false;
+      if (user.role === "owner") return true;
+      return Boolean(user.permissions?.[module]?.[action]);
+    },
+    [user],
+  );
+
+  // ✅ Inicialización con refresh token
   useEffect(() => {
     const init = async () => {
       try {
         const refreshData = await authApi.refresh();
         setAccessToken(refreshData.token);
         await loadUser();
-      } catch { /* empty */ } finally {
+      } finally {
         setIsLoading(false);
       }
     };
+
     init();
 
-    const handleLogout = () => { setAccessToken(null); setUser(null); };
+    const handleLogout = () => {
+      setAccessToken(null);
+      setUser(null);
+    };
+
     window.addEventListener("auth:logout", handleLogout);
     return () => window.removeEventListener("auth:logout", handleLogout);
   }, [loadUser]);
 
+  // ✅ Loader global
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -104,12 +132,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, refreshUser: loadUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isLoading,
+        login,
+        logout,
+        refreshUser: loadUser,
+        can,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
+// ✅ Hook de acceso
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");

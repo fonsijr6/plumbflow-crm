@@ -53,6 +53,7 @@ export const productsApi = {
   update: (id: string, payload: Partial<ProductPayload>) =>
     api.put<Product>(`/company/products/${id}`, payload).then((r) => r.data),
 
-  // ✅ Desactivar producto (NO borrar)
-  deactivate: (id: string) => api.put(`/company/products/${id}/deactivate`),
+  // ✅ Eliminar producto
+  delete: (id: string) =>
+    api.delete<{ msg: string }>(`/company/products/${id}`).then((r) => r.data),
 };
