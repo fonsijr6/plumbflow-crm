@@ -35,6 +35,9 @@ export interface QuotePayload {
   clientId: string;
   items: QuoteLine[];
   notes?: string;
+  subtotal: number;
+  taxTotal: number;
+  total: number;
 }
 
 export const quotesApi = {

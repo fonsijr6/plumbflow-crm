@@ -35,8 +35,7 @@ export default function StockPage() {
 
   const [form, setForm] = useState({
     quantity: 0,
-    minStock: 0,
-    location: "",
+    category: "",
     notes: "",
   });
 
@@ -84,7 +83,7 @@ export default function StockPage() {
   const openEdit = (item: any) => {
     setForm({
       quantity: item.quantity ?? 0,
-      minStock: item.minStock ?? 0,
+      category: item.category ?? "",
       location: item.location || "",
       notes: item.notes || "",
     });
@@ -136,7 +135,7 @@ export default function StockPage() {
             header: "Cantidad",
             render: (r: any) => {
               const qty = r.quantity as number;
-              const isLow = r.minStock != null && qty <= r.minStock;
+              const isLow = r.category != null && qty <= r.category;
 
               return (
                 <div className="flex items-center gap-2">
@@ -155,11 +154,11 @@ export default function StockPage() {
             },
           },
           {
-            key: "minStock",
-            header: "Mínimo",
+            key: "category",
+            header: "Categoría",
             className: "hidden sm:table-cell",
             render: (r: any) =>
-              r.minStock != null ? r.minStock.toLocaleString("es-ES") : "—",
+              r.category != null ? r.category.toLocaleString("es-ES") : "—",
           },
           {
             key: "unitPrice",
@@ -215,6 +214,35 @@ export default function StockPage() {
             className="space-y-4"
           >
             <div className="space-y-2">
+              <Label>
+                Cliente{" "}
+                <span className="text-xs text-muted-foreground">
+                  (opcional)
+                </span>
+              </Label>
+              <Select
+                value={form.clientId || "__none__"}
+                onValueChange={(v) =>
+                  setForm({
+                    ...form,
+                    clientId: v === "__none__" ? "" : v,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sin cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sin cliente</SelectItem>
+                  {clients.map((c: any) => (
+                    <SelectItem key={c._id} value={c._id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Cantidad *</Label>
               <Input
                 type="number"
@@ -230,15 +258,15 @@ export default function StockPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Stock mínimo</Label>
+              <Label>Categoria</Label>
               <Input
                 type="number"
                 min={1}
-                value={form.minStock}
+                value={form.category}
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    minStock: Number(e.target.value),
+                    category: e.target.value,
                   })
                 }
               />

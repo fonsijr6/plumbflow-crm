@@ -20,6 +20,7 @@ export interface Task {
 export interface TaskPayload {
   title: string;
   description?: string;
+  client?: { _id: string; name: string };
   clientId?: string;
   assignedTo?: string;
   status?: string;

@@ -12,6 +12,7 @@ export interface Product {
   unitPrice: number;
   taxRate: number;
   description?: string;
+  category?: strring;
   isActive: boolean;
   createdAt: string;
 }
@@ -24,8 +25,7 @@ export interface ProductPayload {
   unitPrice: number;
   taxRate?: number;
   description?: string;
-
-  // ✅ SOLO para materiales
+  category?: strring;
   initialStock?: number;
 }
 
