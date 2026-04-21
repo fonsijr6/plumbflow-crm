@@ -32,6 +32,7 @@ export interface Invoice {
 
 export interface InvoicePayload {
   clientId: string;
+  client?: Client;
   items: InvoiceLine[];
   notes?: string;
   subtotal: number;

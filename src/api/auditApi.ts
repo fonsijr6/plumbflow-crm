@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import api from "./axiosClient";
 
 export interface AuditEntry {
@@ -12,6 +13,6 @@ export interface AuditEntry {
 }
 
 export const auditApi = {
-  list: (params?: Record<string, string>) =>
-    api.get<AuditEntry[]>("/company/audit", { params }).then((r) => r.data),
+  list: (params?: Record<string, any>) =>
+    api.get("/company/audit", { params }).then((r) => r.data),
 };

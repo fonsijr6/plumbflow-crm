@@ -33,6 +33,7 @@ export interface Quote {
 
 export interface QuotePayload {
   clientId: string;
+  client?: Client;
   items: QuoteLine[];
   notes?: string;
   subtotal: number;

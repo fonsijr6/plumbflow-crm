@@ -189,7 +189,7 @@ export default function TasksPage() {
             key: "client",
             header: "Cliente",
             className: "hidden md:table-cell",
-            render: (r: any) => r.clientId?.name || "—",
+            render: (r: any) => r.client.name || "—",
           },
           {
             key: "status",
