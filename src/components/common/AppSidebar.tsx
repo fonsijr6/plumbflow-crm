@@ -21,12 +21,12 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: "/dashboard", label: "Inicio", icon: LayoutDashboard },
   { to: "/clients", label: "Clientes", icon: Users, module: "clients", action: "view" },
+  { to: "/employees", label: "Empleados", icon: Users, module: "users", action: "view", roles: ["owner", "admin"] },
   { to: "/tasks", label: "Avisos", icon: CalendarDays, module: "tasks", action: "view" },
   { to: "/products", label: "Productos", icon: Package, module: "products", action: "view" },
   { to: "/stock", label: "Stock", icon: Warehouse, module: "stock", action: "view" },
-  { to: "/invoices", label: "Facturas", icon: FileText, module: "invoices", action: "view" },
   { to: "/quotes", label: "Presupuestos", icon: Receipt, module: "quotes", action: "view" },
-  { to: "/employees", label: "Empleados", icon: Users, module: "users", action: "view", roles: ["owner", "admin"] },
+  { to: "/invoices", label: "Facturas", icon: FileText, module: "invoices", action: "view" },
   { to: "/audit", label: "Auditoría", icon: ClipboardList, roles: ["owner", "admin"] },
 ];
 

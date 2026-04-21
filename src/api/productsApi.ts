@@ -12,7 +12,7 @@ export interface Product {
   unitPrice: number;
   taxRate: number;
   description?: string;
-  category?: strring;
+  category?: string;
   isActive: boolean;
   createdAt: string;
 }
@@ -25,7 +25,7 @@ export interface ProductPayload {
   unitPrice: number;
   taxRate?: number;
   description?: string;
-  category?: strring;
+  category?: string;
   initialStock?: number;
 }
 

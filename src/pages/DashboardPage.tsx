@@ -31,7 +31,7 @@ const DashboardPage = () => {
 
   const { data: invoices, isLoading: li } = useQuery({
     queryKey: ["invoices"],
-    queryFn: () => invoicesApi.list(),
+    queryFn: () => invoicesApi.list({ clientId: "" }),
     enabled: hasPermission("invoices", "view"),
   });
 
