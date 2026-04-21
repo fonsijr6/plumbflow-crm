@@ -2,11 +2,12 @@ import api from "./axiosClient";
 
 export interface AuditEntry {
   _id: string;
-  userId: string;
-  userName: string;
-  action: string;
+  userId?: { _id: string; name: string; email: string } | null;
   module: string;
-  details?: string;
+  action: string;
+  entityLabel?: string;
+  entityId?: string;
+  meta?: Record<string, any>;
   createdAt: string;
 }
 
