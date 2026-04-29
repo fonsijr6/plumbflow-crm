@@ -10,7 +10,7 @@ export interface QuoteLine {
   productType: "material" | "service";
   unit: string;
   quantity: number;
-  unitPrice: number;
+  price: number;
   taxRate: number;
   total: number;
 }

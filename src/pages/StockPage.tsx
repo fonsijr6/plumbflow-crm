@@ -157,12 +157,12 @@ export default function StockPage() {
             render: (r: any) => (r.minStock ?? 0).toLocaleString("es-ES"),
           },
           {
-            key: "unitPrice",
+            key: "price",
             header: "Precio unit.",
             className: "hidden md:table-cell",
             render: (r: any) =>
-              r.productId?.unitPrice != null
-                ? r.productId.unitPrice.toLocaleString("es-ES", {
+              r.productId?.price != null
+                ? r.productId.price.toLocaleString("es-ES", {
                     style: "currency",
                     currency: "EUR",
                   })

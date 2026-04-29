@@ -67,7 +67,7 @@ export const validateStockForm = (form: {
   category: string;
   unit: string;
   quantity: number;
-  unitPrice: number;
+  price: number;
   minStock: number;
 }): ValidationError[] => {
   const errors: ValidationError[] = [];
@@ -75,7 +75,7 @@ export const validateStockForm = (form: {
   if (!form.category.trim()) errors.push({ field: "category", message: "Categoría requerida" });
   if (!form.unit.trim()) errors.push({ field: "unit", message: "Unidad requerida" });
   if (form.quantity < 0) errors.push({ field: "quantity", message: "La cantidad no puede ser negativa" });
-  if (form.unitPrice < 0) errors.push({ field: "unitPrice", message: "El precio no puede ser negativo" });
+  if (form.price < 0) errors.push({ field: "price", message: "El precio no puede ser negativo" });
   if (form.minStock < 0) errors.push({ field: "minStock", message: "El stock mínimo no puede ser negativo" });
   return errors;
 };
@@ -84,7 +84,7 @@ export const validateInvoiceForm = (form: {
   clientId: string;
   clientNif: string;
   issuerNif: string;
-  lines: { description: string; quantity: number; unitPrice: number; taxRate: number }[];
+  lines: { description: string; quantity: number; price: number; taxRate: number }[];
 }): ValidationError[] => {
   const errors: ValidationError[] = [];
   if (!form.clientId) errors.push({ field: "clientId", message: "Selecciona un cliente" });
@@ -96,7 +96,7 @@ export const validateInvoiceForm = (form: {
     errors.push({ field: "lines", message: "Añade al menos un concepto" });
   form.lines.forEach((l, i) => {
     if (l.quantity < 0) errors.push({ field: `line_${i}_qty`, message: `Línea ${i + 1}: cantidad negativa` });
-    if (l.unitPrice < 0) errors.push({ field: `line_${i}_price`, message: `Línea ${i + 1}: precio negativo` });
+    if (l.price < 0) errors.push({ field: `line_${i}_price`, message: `Línea ${i + 1}: precio negativo` });
     if (l.taxRate < 0) errors.push({ field: `line_${i}_tax`, message: `Línea ${i + 1}: IVA negativo` });
   });
   return errors;

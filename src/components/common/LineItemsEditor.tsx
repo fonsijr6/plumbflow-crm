@@ -48,7 +48,7 @@ export const LineItemsEditor = ({
   const lineTotal = (item: LineItem) => {
     if (!item.product) return 0;
 
-    const price = item.product.unitPrice || 0;
+    const price = item.product.price || 0;
     const tax = item.product.taxRate || 0;
 
     return item.quantity * price * (1 + tax / 100);
@@ -120,7 +120,7 @@ export const LineItemsEditor = ({
           <div className="col-span-4 sm:col-span-2 space-y-1">
             <Label className="text-xs">Precio</Label>
             <Input
-              value={line.product ? line.product.unitPrice.toFixed(2) : "—"}
+              value={line.product ? line.product.price.toFixed(2) : "—"}
               readOnly
               disabled
             />

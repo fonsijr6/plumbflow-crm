@@ -114,15 +114,15 @@ const QuoteDetailPage = () => {
       clientId: form.clientId,
       notes: form.notes,
       items: items.map((i) => {
-        const { unitPrice, taxRate, unit, name, type } = i.product!;
-        const total = i.quantity * unitPrice * (1 + taxRate / 100);
+        const { price, taxRate, unit, name, type } = i.product!;
+        const total = i.quantity * price * (1 + taxRate / 100);
 
         return {
           productId: i.product!._id,
           name,
           productType: type,
           unit,
-          unitPrice,
+          price,
           taxRate,
           quantity: i.quantity,
           total,
@@ -253,7 +253,7 @@ const QuoteDetailPage = () => {
                         {l.unit ? ` ${l.unit}` : ""}
                       </td>
                       <td className="py-2">
-                        {l.unitPrice.toLocaleString("es-ES", {
+                        {l.price.toLocaleString("es-ES", {
                           style: "currency",
                           currency: "EUR",
                         })}

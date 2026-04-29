@@ -9,7 +9,7 @@ export interface Product {
   name: string;
   type: ProductType;
   unit: string;
-  unitPrice: number;
+  price: number;
   taxRate: number;
   description?: string;
   category?: string;
@@ -22,7 +22,7 @@ export interface ProductPayload {
   name: string;
   type: ProductType;
   unit: string;
-  unitPrice: number;
+  price: number;
   taxRate?: number;
   description?: string;
   category?: string;

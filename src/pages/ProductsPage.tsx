@@ -37,7 +37,7 @@ const emptyProduct: ProductPayload = {
   name: "",
   type: "material",
   unit: "unidad",
-  unitPrice: 0,
+  price: 0,
   taxRate: 21,
   initialStock: 0,
   description: "",
@@ -150,13 +150,15 @@ const ProductsPage = () => {
             className: "hidden sm:table-cell",
           },
           {
-            key: "unitPrice",
-            header: "Precio",
-            render: (r: any) =>
-              r.unitPrice.toLocaleString("es-ES", {
-                style: "currency",
-                currency: "EUR",
-              }),
+            key: "price",
+            header: "Precio",  
+            render: (p) =>
+            typeof p.price === "number"
+              ? p.price.toLocaleString("es-ES", {
+                  style: "currency",
+                  currency: "EUR",
+                })
+              : p.price,
           },
           {
             key: "taxRate",
@@ -258,11 +260,11 @@ const ProductsPage = () => {
                   type="number"
                   min={0}
                   step="0.01"
-                  value={form.unitPrice || ""}
+                  value={form.price || ""}
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      unitPrice: Number(e.target.value),
+                      price: Number(e.target.value),
                     })
                   }
                 />
@@ -324,7 +326,7 @@ const ProductsPage = () => {
               type="submit"
               className="w-full"
               disabled={
-                !form.name.trim() || !form.unitPrice || createMut.isPending
+                !form.name.trim() || !form.price || createMut.isPending
               }
             >
               {createMut.isPending && (

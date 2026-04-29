@@ -139,11 +139,11 @@ const InvoicesPage = () => {
     // --- calcular líneas ---
 
     const lines = items.map((i) => {
-      const unitPrice = i.product!.unitPrice;
+      const price = i.product!.price;
       const taxRate = i.product!.taxRate;
       const quantity = i.quantity;
 
-      const lineSubtotal = quantity * unitPrice;
+      const lineSubtotal = quantity * price;
       const lineTax = lineSubtotal * (taxRate / 100);
       const lineTotal = lineSubtotal + lineTax;
 
@@ -152,7 +152,7 @@ const InvoicesPage = () => {
         name: i.product!.name,
         productType: i.product!.type,
         unit: i.product!.unit,
-        unitPrice,
+        price,
         taxRate,
         quantity,
         total: lineTotal,
