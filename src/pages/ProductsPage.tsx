@@ -326,7 +326,10 @@ const ProductsPage = () => {
               type="submit"
               className="w-full"
               disabled={
-                !form.name.trim() || !form.price || createMut.isPending
+                !form.name.trim() ||
+                form.price === undefined ||
+                form.price < 0 ||
+                createMut.isPending
               }
             >
               {createMut.isPending && (
